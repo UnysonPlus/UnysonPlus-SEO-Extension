@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none"
+     stroke="#ffffff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Magnifier: the search half of the idea. -->
+  <circle cx="108" cy="108" r="66"/>
+  <line x1="156" y1="156" x2="212" y2="212"/>
+  <!-- Rising trend inside the lens: the optimisation half. -->
+  <polyline points="80,128 100,104 120,120 140,88"/>
+  <polyline points="140,88 140,104"/>
+  <polyline points="140,88 124,88"/>
+</svg>

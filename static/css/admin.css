@@ -1,0 +1,121 @@
+/**
+ * Editor-screen chrome for the SEO metabox and the term fields.
+ *
+ * The control itself is styled by the option type; this file only makes the two
+ * host surfaces sit correctly, because a metabox and a term form give options a
+ * very different amount of room.
+ */
+
+.fw-seo-metabox {
+	margin: -6px -12px -12px;
+}
+
+.fw-seo-metabox .fw-backend-option {
+	max-width: none;
+}
+
+/* The term edit screen is a two-column table; the options need the full width. */
+.fw-seo-term-fields {
+	margin: 24px 0 0;
+	padding: 0 0 12px;
+	border-top: 1px solid #dcdcde;
+}
+
+.fw-seo-term-fields > h2 {
+	margin: 20px 0 12px;
+	font-size: 1.3em;
+}
+
+.fw-seo-term-fields .fw-backend-option-type-seo-template,
+.fw-seo-term-fields .fw-backend-option-type-seo-preview {
+	max-width: 800px;
+}
+
+/* The advanced group is long and rarely needed; keep it visually secondary. */
+.fw-seo-metabox .fw-backend-option-type-group + .fw-backend-option-type-group,
+.fw-seo-term-fields .fw-backend-option-type-group + .fw-backend-option-type-group {
+	margin-top: 4px;
+	border-top: 1px solid #f0f0f1;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tabs come from the framework's own `tab` container — the same one the        */
+/* theme's Page Settings metabox uses — so there is deliberately no tab CSS      */
+/* here. A metabox that styles its own tabs sits next to one that doesn't and    */
+/* reads as broken.                                                             */
+/* -------------------------------------------------------------------------- */
+
+/* The robots matrix is disclosed by the "use defaults" switch above it. */
+.fw-seo-robots-hidden {
+	display: none;
+}
+
+/* -----------------------------------------------------------------------------
+   List-table columns
+   -------------------------------------------------------------------------- */
+
+.fw-seo-cell {
+	line-height: 1.5;
+}
+
+.fw-seo-cell-value {
+	display: block;
+	color: #1d2327;
+}
+
+.fw-seo-cell-empty {
+	display: block;
+	color: #8c8f94;
+	font-style: italic;
+}
+
+.fw-seo-cell-meta {
+	display: block;
+	margin-top: 4px;
+}
+
+.fw-seo-source {
+	display: inline-block;
+	padding: 1px 6px;
+	border-radius: 9px;
+	font-size: 11px;
+	line-height: 1.6;
+	background: #f0f0f1;
+	color: #50575e;
+}
+
+/* Only a value the user typed is worth distinguishing at a glance — the other
+   three sources are all "working as configured" and colouring them competes
+   with the content of the cell. */
+.fw-seo-source-override {
+	background: #e5f5ec;
+	color: #135e3b;
+}
+
+.fw-seo-source-none {
+	background: #fcf0f1;
+	color: #8a2424;
+}
+
+.fw-seo-warning {
+	display: inline-block;
+	margin-left: 6px;
+	font-size: 11px;
+	color: #8a6116;
+}
+
+.column-fw_seo_title,
+.column-fw_seo_description {
+	width: 22%;
+}
+
+.fw-seo-quick .fw-seo-quick-hint {
+	margin: 6px 0 0;
+	color: #646970;
+	font-style: italic;
+	clear: both;
+}
+
+.fw-seo-quick textarea {
+	width: 100%;
+}

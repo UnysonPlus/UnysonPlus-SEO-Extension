@@ -2,515 +2,454 @@
 	die( 'Forbidden' );
 }
 
+/**
+ * SEO.
+ *
+ * The extension class is deliberately thin: it boots the engine, resolves the
+ * context once, and wires the framework's hooks to it. Everything with logic in
+ * it lives in `includes/` as a plain class, which keeps that logic testable
+ * without a WordPress request around it.
+ */
 class FW_Extension_SEO extends FW_Extension {
-	/**
-	 * Holds the SEO tags that can be used by sub-extensions
-	 * This member cannot be accessed directly, only by "get_seo_tags" method
-	 * @var array
-	 */
-	private $seo_tags = array();
 
 	/**
-	 * Holds the current location in front-end
-	 * This member cannot be accessed directly, only by "get_location" method
-	 * @var array
+	 * Nonce actions. They live here rather than on FW_SEO_Admin because that
+	 * class is only loaded in the admin, while the option types that need the
+	 * preview nonce are registered on both sides.
 	 */
-	private $current_location = array();
+	const NONCE_SAVE    = 'fw_seo_save';
+	const NONCE_PREVIEW = 'fw_seo_preview';
+
+	/** @var FW_SEO_Context|null Resolved on `wp`. */
+	protected $context = null;
 
 	/**
 	 * @internal
 	 */
 	public function _init() {
-		add_action('fw_option_types_init', array($this, '_action_option_types_init'));
+		$this->load_engine();
+
+		add_action( 'fw_option_types_init', [ $this, '_action_register_option_types' ] );
 
 		if ( is_admin() ) {
-			$this->add_admin_actions();
-			$this->add_admin_filters();
+			$this->add_admin_hooks();
 		} else {
-			$this->add_theme_actions();
+			$this->add_theme_hooks();
 		}
 	}
 
-	public function _action_option_types_init() {
-		require_once dirname( __FILE__ ) . '/includes/option-types/seo-tags/class-fw-option-type-seo-tags.php';
+	/**
+	 * The engine classes. Loaded on both sides — the admin needs them to render
+	 * the live preview, which resolves exactly what the front end will.
+	 */
+	protected function load_engine() {
+		$includes = dirname( __FILE__ ) . '/includes/';
+
+		require_once $includes . 'class-fw-seo-context.php';
+		require_once $includes . 'class-fw-seo-tags.php';
+		require_once $includes . 'class-fw-seo-content.php';
+		require_once $includes . 'class-fw-seo-image.php';
+		require_once $includes . 'class-fw-seo-schema.php';
+		require_once $includes . 'class-fw-seo-store.php';
+		require_once $includes . 'class-fw-seo-locations.php';
+		require_once $includes . 'class-fw-seo-settings.php';
+		require_once $includes . 'class-fw-seo-chain.php';
+		require_once $includes . 'class-fw-seo-head.php';
+		require_once $includes . 'class-fw-seo-sitemap.php';
+
+		// The sitemap wires itself on both sides: the rewrite rules must exist
+		// for the admin's permalink flush, not only for the front end.
+		FW_SEO_Sitemap::init();
 	}
 
-	public function _admin_action_add_static() {
-		$screen = array(
-			'only'  => array(
-				array(
-					'base'  => 'post'
-				)
-			)
-		);
-		if ( fw_current_screen_match($screen) ) {
-			wp_enqueue_style( $this->get_name() . '-style', $this->get_declared_URI('/static/css/style.css') );
+	/**
+	 * @internal
+	 */
+	public function _action_register_option_types() {
+		$types = dirname( __FILE__ ) . '/includes/option-types/';
+
+		require_once $types . 'seo-template/class-fw-option-type-seo-template.php';
+		require_once $types . 'seo-preview/class-fw-option-type-seo-preview.php';
+	}
+
+	// -------------------------------------------------------------------------
+	// Front end
+	// -------------------------------------------------------------------------
+
+	protected function add_theme_hooks() {
+		add_action( 'wp', [ $this, '_action_resolve_context' ], 5 );
+
+		// 999 so a theme that sets its own title has already had its say.
+		add_filter( 'pre_get_document_title', [ $this, '_filter_document_title' ], 999 );
+
+		add_action( 'wp_head', [ $this, '_action_render_head' ], 1 );
+		add_action( 'fw_seo_collect_head', [ $this, '_action_collect_head' ] );
+
+		// Core prints its own robots tag since 5.7; take that over rather than
+		// emitting a second, competing one.
+		add_filter( 'wp_robots', [ $this, '_filter_robots' ], 999 );
+
+		// The parent theme ships a metadata fallback for sites with no SEO
+		// plugin. Claim each surface we emit so it stands down there and keeps
+		// the rest — the description, the canonical, and now the social tags.
+		//
+		// Both are attached unconditionally and decide inside the callback. Do
+		// NOT read the extension settings here: this runs during _init, and the
+		// settings reader forces Unyson's option-type initialisation, which at
+		// this point happens BEFORE the page-builder extension has registered
+		// its `page-builder` option type. The builder then fatals on every page
+		// built with it. (Same trap the portfolio extension documents.)
+		add_filter( 'unysonplus_emit_meta_description', '__return_false' );
+		add_filter( 'unysonplus_emit_meta_canonical', [ $this, '_filter_theme_canonical' ] );
+		add_filter( 'unysonplus_emit_meta_social', [ $this, '_filter_theme_social' ] );
+		add_filter( 'unysonplus_emit_schema', [ $this, '_filter_theme_schema' ] );
+	}
+
+	/**
+	 * @internal
+	 */
+	public function _action_resolve_context() {
+		$this->context = FW_SEO_Context::from_query();
+
+		// Core prints its own canonical. Ours is the one that honours the
+		// per-post override, so drop core's rather than shipping two — two
+		// canonicals on a page is worse than either alone, because a search
+		// engine is entitled to ignore both.
+		if ( FW_SEO_Settings::flag( 'canonical_enabled', true ) ) {
+			remove_action( 'wp_head', 'rel_canonical' );
 		}
 	}
 
-	private function add_admin_actions() {
-		add_action( 'admin_enqueue_scripts', array( $this, '_admin_action_add_static' ) );
-	}
-
 	/**
-	 * Init the admin area filters
+	 * @return FW_SEO_Context|null
 	 */
-	private function add_admin_filters() {
-		add_filter( 'fw_post_options', array( $this, '_admin_filter_set_custom_posts_seo_options' ), 10, 2 );
-		add_filter( 'fw_taxonomy_options', array( $this, '_admin_filter_set_taxonomy_seo_options' ), 10, 2 );
+	public function get_context() {
+		return $this->context;
 	}
 
 	/**
-	 * Init the frontend area actions
+	 * Suppress the theme's canonical only while we are emitting our own.
+	 *
+	 * @internal
+	 *
+	 * @return bool
 	 */
-	private function add_theme_actions() {
-		add_action( 'wp', array( $this, '_action_set_location' ) );
-		add_action( 'fw_ext_seo_init_location', array( $this, '_theme_action_update_seo_tags' ) );
+	public function _filter_theme_canonical() {
+		return ! FW_SEO_Settings::flag( 'canonical_enabled', true );
 	}
 
 	/**
-	 * @param $tag , SEO tag name
+	 * Suppress the theme's social tags only while we are emitting our own.
+	 *
+	 * @internal
+	 *
+	 * @return bool
+	 */
+	public function _filter_theme_social() {
+		return ! FW_SEO_Settings::flag( 'social_enabled', true );
+	}
+
+	/**
+	 * Suppress the theme's JSON-LD only while we are emitting our own.
+	 *
+	 * The theme's gate defaults to "on unless a known SEO plugin is active", and
+	 * its list of known plugins does not include us — so without this the site
+	 * would carry two Organization nodes claiming the same @id.
+	 *
+	 * @internal
+	 *
+	 * @return bool
+	 */
+	public function _filter_theme_schema() {
+		return ! FW_SEO_Settings::flag( 'schema_enabled', true );
+	}
+
+	/**
+	 * @internal
+	 *
+	 * @param string $title
 	 *
 	 * @return string
 	 */
-	private function parse_seo_tag_helper( $tag ) {
-		$tag_str = trim( str_replace( '%%', '', $tag[0] ) );
-		$seo_tag = $this->get_seo_tags( $tag_str );
+	public function _filter_document_title( $title ) {
+		if ( ! $this->context ) {
+			return $title;
+		}
 
-		return isset( $seo_tag['value'] ) ? $seo_tag['value'] : '';
+		$resolved = FW_SEO_Chain::resolve( 'title', $this->context );
+
+		return '' !== $resolved ? $resolved : $title;
 	}
 
 	/**
-	 * Init seo tags
-	 * There will be defined only the name and description of the tags, and the value of few simple tags.
-	 * The value of the tags is updated by "_action_init_update_tags" method on "wp" action
+	 * @internal
 	 */
-	public function init_seo_tags() {
-		if ( ! empty( $this->seo_tags ) ) {
+	public function _action_render_head() {
+		if ( ! $this->context ) {
 			return;
 		}
 
-		$this->seo_tags['sitename'] = array(
-			'name'  => '%%sitename%%',
-			'desc'  => __( 'Site name', 'fw' ),
-			'value' => get_bloginfo( 'name' ),
-		);
+		FW_SEO_Head::render( $this->context );
+	}
 
-		$this->seo_tags['sitedesc'] = array(
-			'name'  => '%%sitedesc%%',
-			'desc'  => __( 'Site description', 'fw' ),
-			'value' => get_bloginfo( 'description' ),
-		);
+	/**
+	 * The built-in head providers.
+	 *
+	 * @internal
+	 *
+	 * @param FW_SEO_Context $ctx
+	 */
+	public function _action_collect_head( FW_SEO_Context $ctx ) {
+		$description = FW_SEO_Chain::resolve( 'description', $ctx );
 
-		$this->seo_tags['currenttime'] = array(
-			'name'  => '%%currenttime%%',
-			'desc'  => __( 'Current time', 'fw' ),
-			'value' => date( 'H:i' ),
-		);
+		if ( '' !== $description ) {
+			FW_SEO_Head::add( 'description', [
+				'name'    => 'description',
+				'content' => $description,
+			], 'meta', 10 );
+		}
 
-		$this->seo_tags['currentdate'] = array(
-			'name'  => '%%currentdate%%',
-			'desc'  => __( 'Current date', 'fw' ),
-			'value' => date( 'M jS Y' ),
-		);
+		$canonical = FW_SEO_Chain::resolve( 'canonical', $ctx );
 
-		$this->seo_tags['currentmonth'] = array(
-			'name'  => '%%currentmonth%%',
-			'desc'  => __( 'Current month', 'fw' ),
-			'value' => date( 'F Y' ),
-		);
+		if ( '' !== $canonical ) {
+			FW_SEO_Head::add( 'canonical', [
+				'rel'  => 'canonical',
+				'href' => $canonical,
+			], 'link', 20 );
+		}
 
-		$this->seo_tags['currentyear'] = array(
-			'name'  => '%%currentyear%%',
-			'desc'  => __( 'Current year', 'fw' ),
-			'value' => date( 'Y' ),
-		);
+		$this->collect_social( $ctx );
 
-		$this->seo_tags['date'] = array(
-			'name'  => '%%date%%',
-			'desc'  => __( 'Date of the post/page', 'fw' ),
-			'value' => '',
-		);
+		$this->collect_schema( $ctx );
 
-		$this->seo_tags['title'] = array(
-			'name'  => '%%title%%',
-			'desc'  => __( 'Title of the post/page/term', 'fw' ),
-			'value' => '',
-		);
+		foreach ( $this->get_verification_tags() as $key => $tag ) {
+			FW_SEO_Head::add( $key, $tag, 'meta', 30 );
+		}
+	}
 
-		$this->seo_tags['excerpt'] = array(
-			'name'  => '%%excerpt%%',
-			'desc'  => __( 'Excerpt of the current post, of auto-generate if it is not set', 'fw' ),
-			'value' => '',
-		);
+	/**
+	 * The JSON-LD graph.
+	 *
+	 * @param FW_SEO_Context $ctx
+	 */
+	protected function collect_schema( FW_SEO_Context $ctx ) {
+		if ( ! FW_SEO_Settings::flag( 'schema_enabled', true ) ) {
+			return;
+		}
 
-		$this->seo_tags['excerpt_only'] = array(
-			'name'  => '%%excerpt_only%%',
-			'desc'  => __( 'Excerpt of the current post, without auto-generation', 'fw' ),
-			'value' => '',
-		);
+		$markup = FW_SEO_Schema::markup( $ctx );
 
-		$this->seo_tags['post_tags'] = array(
-			'name'  => '%%post_tags%%',
-			'desc'  => __( 'Post tags, separated by coma', 'fw' ),
-			'value' => '',
-		);
+		if ( '' !== $markup ) {
+			FW_SEO_Head::add_raw( 'schema', $markup, 60 );
+		}
+	}
 
-		$this->seo_tags['post_categories'] = array(
-			'name'  => '%%post_categories%%',
-			'desc'  => __( 'Post categories, separated by coma', 'fw' ),
-			'value' => '',
-		);
+	/**
+	 * Open Graph and Twitter card tags.
+	 *
+	 * Both networks are fed from one resolution, which is the point: a share
+	 * card that disagrees with the search result is the bug this replaces, and it
+	 * happened because the two were calculated in different places.
+	 *
+	 * @param FW_SEO_Context $ctx
+	 */
+	protected function collect_social( FW_SEO_Context $ctx ) {
+		if ( ! FW_SEO_Settings::flag( 'social_enabled', true ) ) {
+			return;
+		}
 
-		$this->seo_tags['description'] = array(
-			'name'  => '%%description%%',
-			'desc'  => __( 'Category/tag/term description', 'fw' ),
-			'value' => '',
-		);
+		$og_title       = FW_SEO_Chain::resolve( 'og_title', $ctx );
+		$og_description = FW_SEO_Chain::resolve( 'og_description', $ctx );
+		$og_image       = FW_SEO_Chain::resolve( 'og_image', $ctx );
+		$url            = fw_seo_canonical_url( $ctx );
 
-		$this->seo_tags['term_title'] = array(
-			'name'  => '%%term_title%%',
-			'desc'  => __( 'Term title', 'fw' ),
-			'value' => '',
-		);
+		$tags = [
+			'og_type'      => [ 'property' => 'og:type', 'content' => fw_seo_og_type( $ctx ) ],
+			'og_title'     => [ 'property' => 'og:title', 'content' => $og_title ],
+			'og_desc'      => [ 'property' => 'og:description', 'content' => $og_description ],
+			'og_url'       => [ 'property' => 'og:url', 'content' => $url ],
+			'og_site_name' => [ 'property' => 'og:site_name', 'content' => get_bloginfo( 'name' ) ],
+			'og_locale'    => [ 'property' => 'og:locale', 'content' => get_locale() ],
+		];
 
-		$this->seo_tags['modified'] = array(
-			'name'  => '%%modified%%',
-			'desc'  => __( 'Post modified time', 'fw' ),
-			'value' => '',
-		);
+		if ( '' !== $og_image ) {
+			$tags['og_image'] = [ 'property' => 'og:image', 'content' => $og_image ];
 
-		$this->seo_tags['id'] = array(
-			'name'  => '%%id%%',
-			'desc'  => __( 'Post/page id', 'fw' ),
-			'value' => '',
-		);
+			// Dimensions let a crawler reserve the space before it has fetched
+			// the file. Only ever emitted for an image we host and can measure —
+			// a guessed size is worse than none, because it is believed.
+			$size = FW_SEO_Image::dimensions( $og_image );
 
-		$this->seo_tags['author_name'] = array(
-			'name'  => '%%author_name%%',
-			'desc'  => __( 'Post/page author "nicename"', 'fw' ),
-			'value' => '',
-		);
+			if ( $size['width'] && $size['height'] ) {
+				$tags['og_image_w'] = [ 'property' => 'og:image:width', 'content' => (string) $size['width'] ];
+				$tags['og_image_h'] = [ 'property' => 'og:image:height', 'content' => (string) $size['height'] ];
+			}
+		}
 
-		$this->seo_tags['author_id'] = array(
-			'name'  => '%%author_id%%',
-			'desc'  => __( 'Post/page author id', 'fw' ),
-			'value' => '',
-		);
+		// Article metadata. Only on a real post — putting a published time on a
+		// static page tells Google the page is news, which it is not.
+		if ( $ctx->is( FW_SEO_Context::SINGULAR ) && $ctx->post_id() && 'article' === fw_seo_og_type( $ctx ) ) {
+			$post_id = $ctx->post_id();
 
-		$this->seo_tags['searchphrase'] = array(
-			'name'  => '%%searchphrase%%',
-			'desc'  => __( 'Search phrase in search page', 'fw' ),
-			'value' => '',
-		);
+			$tags['article_published'] = [
+				'property' => 'article:published_time',
+				'content'  => (string) get_post_time( 'c', true, $post_id ),
+			];
+			$tags['article_modified'] = [
+				'property' => 'article:modified_time',
+				'content'  => (string) get_post_modified_time( 'c', true, $post_id ),
+			];
+		}
 
-		$this->seo_tags['pagenumber'] = array(
-			'name'  => '%%pagenumber%%',
-			'desc'  => __( 'Page number', 'fw' ),
-			'value' => '',
-		);
-
-		$this->seo_tags['max_page'] = array(
-			'name'  => '%%max_page%%',
-			'desc'  => __( 'Page number', 'fw' ),
-			'value' => '',
-		);
-
-		$this->seo_tags['caption'] = array(
-			'name'  => '%%caption%%',
-			'desc'  => __( 'Attachment caption', 'fw' ),
-			'value' => '',
-		);
-
-		foreach ( apply_filters( 'fw_ext_seo_init_tags', array() ) as $tag_id => $tag ) {
-			if ( isset( $this->seo_tags[ $tag_id ] ) ) {
+		foreach ( $tags as $key => $attr ) {
+			if ( '' === trim( (string) $attr['content'] ) ) {
 				continue;
 			}
-			$this->seo_tags[ $tag_id ] = $tag;
+
+			FW_SEO_Head::add( $key, $attr, 'meta', 40 );
 		}
+
+		$this->collect_twitter( $ctx, $og_image );
 	}
 
 	/**
-	 * Return the current page type in front-end
-	 * @return array
+	 * @param FW_SEO_Context $ctx
+	 * @param string         $og_image
 	 */
-	public function get_location() {
-		return $this->current_location;
-	}
+	protected function collect_twitter( FW_SEO_Context $ctx, $og_image ) {
+		$image = FW_SEO_Chain::resolve( 'twitter_image', $ctx );
+		$card  = (string) FW_SEO_Store::get( $ctx, 'twitter_card' );
 
-	/**
-	 * Parses string values and replaces the seo tags with their values
-	 * This method should be called after wordpress "wp" action
-	 *
-	 * @param $value , option value that should be parsed
-	 *
-	 * @return string
-	 */
-	public function parse_seo_tags( $value ) {
-		$value = strip_tags( $value );
-
-		return preg_replace_callback( '/%%[a-z|0-9|_|-]*%%/', array( $this, 'parse_seo_tag_helper' ), $value );
-	}
-
-	/**
-	 * Determine the current frontend page location
-	 * @internal
-	 */
-	public function _action_set_location() {
-		global $wp_query;
-		$return = array();
-
-		if ( is_404() ) {
-			$return['type'] = '404';
-		} elseif ( is_search() ) {
-			$return['type'] = 'search';
-		} elseif ( is_front_page() ) {
-			$return['type'] = 'front_page';
-
-			if ( ! is_home() ) {
-				$return['id'] = get_option( 'page_on_front' );
-			}
-		} elseif ( is_home() ) {
-			$return['type'] = 'blog_page';
-			$return['id']   = get_option( 'page_for_posts' );
-		} elseif ( is_singular() ) {
-			global $post;
-			$return['type']      = 'singular';
-			$return['id']        = $post->ID;
-			$return['post_type'] = $post->post_type;
-		} elseif ( is_category() ) {
-			$return['type']          = 'category';
-			$return['taxonomy_type'] = get_query_var( 'category_name' );
-			$return['id']            = get_query_var( 'cat' );
-		} elseif ( is_tag() ) {
-			$return['type']          = 'tag';
-			$return['taxonomy_type'] = get_query_var( 'taxonomy' );
-			$return['id']            = get_query_var( 'tag_id' );
-		} elseif ( is_tax() ) {
-			$return['type']          = 'taxonomy';
-			$return['taxonomy_type'] = get_query_var( 'taxonomy' );
-			$return['id']            = get_queried_object()->term_id;
-		} elseif ( is_author() ) {
-			$return['type'] = 'author_archive';
-		} elseif ( is_date() ) {
-			$return['type'] = 'date_archive';
-		} elseif ( is_archive() ) {
-			$return['type'] = 'archive';
-		} elseif ( is_feed() ) {
-			$return['type'] = 'feed';
-		} else {
-			$return[''] = null;
+		if ( '' === $card ) {
+			$card = (string) FW_SEO_Settings::get( 'twitter_card', 'summary_large_image' );
 		}
 
-		/*
-		 * Check if the location has pagination and add the page
-		 */
-		$paged                  = get_query_var( 'paged' );
-		$return['paged']        = ( $paged == 0 ) ? 1 : $paged;
-		$return['max_pages']    = $wp_query->max_num_pages;
-		$return                 = apply_filters( 'fw_ext_seo_get_location', $return );
-		$this->current_location = $return;
-
-		do_action( 'fw_ext_seo_init_location', $this->current_location );
-	}
-
-	/**
-	 * Returns the SEO tags: %%title%%, %%excerpt%%, ...
-	 * This function should be used after wordpress "wp" action
-	 * If the method is called without parameters it returns the array of all tags and their values
-	 * If the method is called with parameter, it returns the tag
-	 * If the method is called with parameter and it is wrong, it returns an empty string
-	 *
-	 * @param $tag , name of the specific tag
-	 *
-	 * @return array
-	 */
-	public function get_seo_tags( $tag = null ) {
-		$this->init_seo_tags();
-
-		if ( is_null( $tag ) ) {
-			return $this->seo_tags;
+		// A large-image card with no image renders as a bare link. Degrade to
+		// the small card rather than emitting a promise nothing can keep.
+		if ( 'summary_large_image' === $card && '' === $image && '' === $og_image ) {
+			$card = 'summary';
 		}
 
-		if ( isset( $this->seo_tags[ $tag ] ) ) {
-			return $this->seo_tags[ $tag ];
+		$tags = [
+			'tw_card'  => [ 'name' => 'twitter:card', 'content' => $card ],
+			'tw_title' => [ 'name' => 'twitter:title', 'content' => FW_SEO_Chain::resolve( 'twitter_title', $ctx ) ],
+			'tw_desc'  => [ 'name' => 'twitter:description', 'content' => FW_SEO_Chain::resolve( 'twitter_description', $ctx ) ],
+			'tw_image' => [ 'name' => 'twitter:image', 'content' => $image ],
+		];
+
+		$site = trim( (string) FW_SEO_Settings::get( 'twitter_site', '' ) );
+
+		if ( '' !== $site ) {
+			$tags['tw_site'] = [ 'name' => 'twitter:site', 'content' => fw_seo_at_handle( $site ) ];
 		}
 
-		return array();
-	}
-
-	/**
-	 * @internal
-	 *
-	 * Update the SEO key tags values on wordpress "wp" action,
-	 * such as %%title%%, %%excerpt%%, values can only be initialised after "wp" action
-	 *
-	 * @param array $location
-	 */
-	public function _theme_action_update_seo_tags( $location ) {
-		if ( empty( $this->seo_tags ) ) {
-			$this->get_seo_tags();
-		}
-
-		if (empty($location['type'])) {
-			return $location;
-		}
-
-		switch ( $location['type'] ) {
-			case 'search' :
-				$this->seo_tags['searchphrase']['value'] = get_search_query();
-				$this->seo_tags['pagenumber']            = $location['paged'];
-				$this->seo_tags['max_page']              = $location['max_pages'];
-				break;
-			case 'author_archive' :
-				$this->seo_tags['author_id']['value']   = get_query_var( 'author' );
-				$this->seo_tags['author_name']['value'] = get_the_author_meta( 'nickname', get_query_var( 'author' ) );
-				$this->seo_tags['pagenumber']           = $location['paged'];
-				$this->seo_tags['max_page']             = $location['max_pages'];
-				break;
-			case 'date_archive' :
-				$this->seo_tags['pagenumber'] = $location['paged'];
-				$this->seo_tags['max_page']   = $location['max_pages'];
-
-				// get date for current archive
-				if ( is_year() ) {
-					$date = get_the_date( 'Y', get_the_ID() );
-				} elseif ( is_month() ) {
-					$date = get_the_date( 'F Y', get_the_ID() );
-				} elseif ( is_day() ) {
-					$date = get_the_date( 'F j, Y', get_the_ID() );
-				} else {
-					$date = '';
-				}
-				$this->seo_tags['date']['value'] = $date;
-
-				break;
-			case 'front_page' :
-				$this->seo_tags['pagenumber'] = $location['paged'];
-				$this->seo_tags['max_page']   = $location['max_pages'];
-				break;
-			case 'blog_page' :
-				$this->seo_tags['pagenumber'] = $location['paged'];
-				$this->seo_tags['max_page']   = $location['max_pages'];
-				break;
-			case 'singular' :
-				global $post;
-				$this->seo_tags['date']['value']         = get_the_date();
-				$this->seo_tags['title']['value']        = get_the_title();
-				$this->seo_tags['excerpt']['value']      = ! empty( $post->post_excerpt ) ? get_the_excerpt() : ( ! empty( $post->post_content ) ? wp_trim_excerpt( $post->post_content ) : '' );
-				$this->seo_tags['excerpt_only']['value'] = ! empty( $post->post_excerpt ) ? get_the_excerpt() : '';
-				$this->seo_tags['modified']['value']     = $post->post_modified;
-				$this->seo_tags['id']['value']           = $post->ID;
-				$this->seo_tags['author_id']['value']    = $post->post_author;
-				$this->seo_tags['author_name']['value']  = get_the_author_meta( 'nickname', $post->post_author );
-				if ( $location['post_type'] == 'attachment' ) {
-					$this->seo_tags['caption']['value'] = ( has_excerpt() ) ? get_the_excerpt() : '';
-				}
-
-				$categories = wp_get_post_categories( $post->ID );
-				foreach ( $categories as $cat_id ) {
-					$category = get_category( $cat_id );
-					$this->seo_tags['post_categories']['value'] .= $category->name . ', ';
-				}
-				$this->seo_tags['post_categories']['value'] = rtrim( $this->seo_tags['post_categories']['value'], ', ' );
-
-				$tags = wp_get_post_tags( $post->ID );
-				foreach ( $tags as $tag_id ) {
-					$tag = get_tag( $tag_id );
-					$this->seo_tags['post_tags']['value'] .= $tag->name . ', ';
-				}
-				$this->seo_tags['post_tags']['value'] = rtrim( $this->seo_tags['post_tags']['value'], ', ' );
-				break;
-			case 'tag' :
-				$this->seo_tags['title']['value']       = single_term_title( '', false );
-				$this->seo_tags['description']['value'] = strip_tags( term_description( $location['id'], $location['taxonomy_type'] ) );
-				$this->seo_tags['pagenumber']           = $location['paged'];
-				$this->seo_tags['max_page']             = $location['max_pages'];
-				break;
-			case 'category' :
-				$this->seo_tags['title']['value']       = single_term_title( '', false );
-				$this->seo_tags['description']['value'] = strip_tags( term_description( $location['id'], $location['taxonomy_type'] ) );
-				$this->seo_tags['pagenumber']           = $location['paged'];
-				$this->seo_tags['max_page']             = $location['max_pages'];
-				break;
-			case 'taxonomy' :
-				$this->seo_tags['title']['value']       = single_term_title( '', false );
-				$this->seo_tags['description']['value'] = strip_tags( term_description( $location['id'], $location['taxonomy_type'] ) );
-				$this->seo_tags['pagenumber']           = $location['paged'];
-				$this->seo_tags['max_page']             = $location['max_pages'];
-				break;
-		}
-
-		$this->seo_tags = apply_filters( 'fw_ext_seo_update_tags', $this->seo_tags, $location );
-	}
-
-	/**
-	 * Inserts the SEO metabox tab in custom posts editor, where sub-extensions will attach their options
-	 *
-	 * @param $post_options , array of the current custom post options
-	 * @param $post_type , custom post type
-	 *
-	 * @return array
-	 * @internal
-	 */
-	public function _admin_filter_set_custom_posts_seo_options( $post_options, $post_type ) {
-		$seo_options = array(
-			'title'   => __( 'SEO', 'fw' ),
-			'type'    => 'tab',
-			'options' => array()
-		);
-
-		foreach ( apply_filters( 'fw_ext_seo_post_type_options', array(), $post_type ) as $tab_id => $options ) {
-			if ( isset( $seo_options['options'][ $tab_id ] ) ) {
+		foreach ( $tags as $key => $attr ) {
+			if ( '' === trim( (string) $attr['content'] ) ) {
 				continue;
 			}
-			$seo_options['options'][ $tab_id ] = $options;
+
+			FW_SEO_Head::add( $key, $attr, 'meta', 50 );
 		}
-
-		if ( ( count( $seo_options['options'] ) == 1 ) ) {
-			$first_value = reset( $seo_options['options'] );
-			if ( isset( $first_value['type'] ) && ( $first_value['type'] == 'tab' ) ) {
-				$seo_options['options'] = $first_value['options'];
-			}
-		}
-
-		if ( is_array( $seo_options['options'] ) && ! empty( $seo_options['options'] ) ) {
-
-			if ( isset( $post_options['main'] ) && $post_options['main']['type'] == 'box' ) {
-				$seo_options['type'] = 'tab';
-				$post_options['main']['options'][ $this->get_name() ] = $seo_options;
-			} else {
-				$seo_options['type']               = 'box';
-				$post_options[ $this->get_name() ] = $seo_options;
-			}
-		}
-
-		return $post_options;
 	}
 
 	/**
-	 * Inserts the SEO options section in taxonomy editor, where sub-extensions will attach their options
+	 * Search-engine ownership verification tags.
 	 *
-	 * @param $tax_options , array of the current taxonomy options
-	 * @param $taxonomy , taxonomy type
-	 *
-	 * @return array
-	 * @internal
+	 * @return array<string,array>
 	 */
-	public function _admin_filter_set_taxonomy_seo_options( $tax_options, $taxonomy ) {
-		$seo_options = array();
+	protected function get_verification_tags() {
+		$providers = [
+			'google'    => 'google-site-verification',
+			'bing'      => 'msvalidate.01',
+			'yandex'    => 'yandex-verification',
+			'pinterest' => 'p:domain_verify',
+			'baidu'     => 'baidu-site-verification',
+		];
 
-		foreach ( apply_filters( 'fw_ext_seo_taxonomy_options', array(), $taxonomy ) as $group_id => $options ) {
-			if ( isset( $seo_options[ $group_id ] ) ) {
+		$tags = [];
+
+		foreach ( $providers as $id => $meta_name ) {
+			$value = trim( (string) FW_SEO_Settings::get( 'verify_' . $id, '' ) );
+
+			if ( '' === $value ) {
 				continue;
 			}
-			$seo_options[ $group_id ] = $options;
+
+			$tags[ 'verify_' . $id ] = [
+				'name'    => $meta_name,
+				'content' => $value,
+			];
 		}
 
-		if ( is_array( $seo_options ) && ! empty( $seo_options ) ) {
-			return array_merge( $tax_options, $seo_options );
+		return $tags;
+	}
+
+	/**
+	 * @internal
+	 *
+	 * @param array $robots
+	 *
+	 * @return array
+	 */
+	public function _filter_robots( $robots ) {
+		if ( ! $this->context ) {
+			return $robots;
 		}
 
-		return $tax_options;
+		$directives = fw_seo_robots( $this->context );
+		$resolved   = [];
+
+		foreach ( $directives as $directive ) {
+			if ( false !== strpos( $directive, ':' ) ) {
+				[ $name, $value ] = explode( ':', $directive, 2 );
+
+				$resolved[ $name ] = $value;
+				continue;
+			}
+
+			$resolved[ $directive ] = true;
+		}
+
+		// `index` and `follow` are the defaults; emitting them is noise, and
+		// pairing `index` with `noindex` in one tag is a contradiction.
+		if ( isset( $resolved['noindex'] ) ) {
+			unset( $resolved['index'] );
+		}
+
+		if ( isset( $resolved['nofollow'] ) ) {
+			unset( $resolved['follow'] );
+		}
+
+		return $resolved;
+	}
+
+	// -------------------------------------------------------------------------
+	// Admin
+	// -------------------------------------------------------------------------
+
+	protected function add_admin_hooks() {
+		require_once dirname( __FILE__ ) . '/includes/class-fw-seo-admin.php';
+		require_once dirname( __FILE__ ) . '/includes/class-fw-seo-list.php';
+		require_once dirname( __FILE__ ) . '/includes/class-fw-seo-settings-page.php';
+
+		new FW_SEO_Admin( $this );
+		new FW_SEO_List( $this );
+		new FW_SEO_Settings_Page( $this );
+	}
+
+	/**
+	 * The extension's own settings, read once.
+	 *
+	 * @param string|null $key
+	 * @param mixed       $default_value
+	 *
+	 * @return mixed
+	 */
+	public function get_setting( $key = null, $default_value = null ) {
+		if ( null === $key ) {
+			return FW_SEO_Settings::all();
+		}
+
+		return FW_SEO_Settings::get( $key, $default_value );
 	}
 }

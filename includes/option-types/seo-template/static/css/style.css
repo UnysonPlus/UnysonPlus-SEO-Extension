@@ -1,0 +1,332 @@
+/**
+ * The SEO template control + the search-result preview.
+ *
+ * Scoped to .fw-seo-* rather than the option wrapper so the same styles serve
+ * the metabox, the term screen and the settings page without three variants.
+ */
+
+.fw-seo-template {
+	width: 100%;
+}
+
+.fw-seo-template-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 6px;
+}
+
+.fw-seo-template-toolbar .button-link.fw-seo-browse {
+	margin-left: 4px;
+	text-decoration: none;
+}
+
+.fw-seo-template-input {
+	width: 100% !important;
+	font-family: inherit;
+}
+
+/**
+ * The chip editor.
+ *
+ * A contenteditable layered over the real input, which stays in the DOM (hidden)
+ * and remains the only thing that holds the value. Styled to match a WordPress
+ * text field so the swap is invisible.
+ */
+.fw-seo-template-editor {
+	min-height: 30px;
+	padding: 5px 8px;
+	border: 1px solid #8c8f94;
+	border-radius: 4px;
+	background: #fff;
+	color: #2c3338;
+	font-size: 14px;
+	line-height: 1.5;
+	white-space: pre-wrap;
+	word-wrap: break-word;
+	cursor: text;
+}
+
+.fw-seo-template-editor.is-multiline {
+	min-height: 72px;
+}
+
+.fw-seo-template-editor:focus {
+	border-color: #2271b1;
+	box-shadow: 0 0 0 1px #2271b1;
+	outline: 2px solid transparent;
+}
+
+/* Shown only while the field is genuinely empty. */
+.fw-seo-template-editor.is-empty:empty::before,
+.fw-seo-template-editor.is-empty::before {
+	content: attr(data-placeholder);
+	color: #8c8f94;
+	font-style: italic;
+	pointer-events: none;
+}
+
+.fw-seo-template-editor.is-empty:not(:empty)::before {
+	content: none;
+}
+
+/**
+ * A tag, rendered as a single unit. contenteditable="false" on the element is
+ * what makes the caret step over it, so backspace removes the whole tag instead
+ * of eating one `%` and quietly breaking it.
+ */
+.fw-seo-chip {
+	display: inline-block;
+	margin: 0 1px;
+	padding: 1px 8px;
+	border: 1px solid #c5d9ed;
+	border-radius: 10px;
+	background: #f0f6fc;
+	color: #2271b1;
+	font-size: 12px;
+	line-height: 1.6;
+	white-space: nowrap;
+	user-select: all;
+	cursor: default;
+}
+
+textarea.fw-seo-template-input {
+	min-height: 72px;
+	resize: vertical;
+}
+
+.fw-seo-template-counter {
+	margin-top: 6px;
+	color: #646970;
+	font-size: 12px;
+	text-align: right;
+}
+
+.fw-seo-template-counter.is-over {
+	color: #b32d2e;
+	font-weight: 600;
+}
+
+.fw-seo-template-counter.is-empty {
+	color: #8c8f94;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Preview                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.fw-seo-preview {
+	margin: 0 0 4px;
+	padding: 14px 16px;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	background: #fff;
+}
+
+.fw-seo-preview-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 10px;
+}
+
+.fw-seo-preview-label {
+	color: #646970;
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+}
+
+.fw-seo-preview-mode {
+	padding: 2px 10px;
+	border: 1px solid #dcdcde;
+	border-radius: 12px;
+	background: #f6f7f7;
+	color: #50575e;
+	font-size: 11px;
+	cursor: pointer;
+}
+
+.fw-seo-preview-mode + .fw-seo-preview-mode {
+	margin-left: 4px;
+}
+
+.fw-seo-preview-mode.is-active {
+	border-color: #2271b1;
+	background: #2271b1;
+	color: #fff;
+}
+
+.fw-seo-preview-card {
+	max-width: 600px;
+	font-family: Arial, sans-serif;
+}
+
+.fw-seo-preview-card.is-mobile {
+	max-width: 400px;
+	padding: 12px;
+	border: 1px solid #ebebeb;
+	border-radius: 8px;
+}
+
+.fw-seo-preview-url {
+	color: #202124;
+	font-size: 12px;
+	line-height: 1.4;
+	word-break: break-all;
+}
+
+.fw-seo-preview-title {
+	color: #1a0dab;
+	font-size: 20px;
+	line-height: 1.3;
+	/* Google clips the title rather than wrapping past two lines. */
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.fw-seo-preview-title:empty::before {
+	content: attr(data-placeholder);
+	color: #a7aaad;
+}
+
+.fw-seo-preview-description {
+	margin-top: 2px;
+	color: #4d5156;
+	font-size: 14px;
+	line-height: 1.58;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.fw-seo-preview-sources {
+	margin-top: 10px;
+	color: #8c8f94;
+	font-size: 11px;
+	font-style: italic;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tag browser                                                                 */
+/* -------------------------------------------------------------------------- */
+
+.fw-seo-browser[hidden] {
+	display: none;
+}
+
+.fw-seo-browser {
+	position: fixed;
+	inset: 0;
+	z-index: 160000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.fw-seo-browser-backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, .6);
+}
+
+.fw-seo-browser-panel {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	width: min(560px, calc(100vw - 40px));
+	max-height: min(70vh, 640px);
+	padding: 18px;
+	border-radius: 4px;
+	background: #fff;
+	box-shadow: 0 3px 30px rgba(0, 0, 0, .3);
+}
+
+.fw-seo-browser-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 12px;
+}
+
+.fw-seo-browser-close {
+	border: 0;
+	background: none;
+	color: #646970;
+	font-size: 22px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.fw-seo-browser-search {
+	width: 100%;
+	margin-bottom: 12px;
+}
+
+.fw-seo-browser-list {
+	overflow-y: auto;
+	flex: 1 1 auto;
+}
+
+.fw-seo-browser-group {
+	margin: 14px 0 6px;
+	color: #646970;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: .05em;
+}
+
+.fw-seo-browser-group:first-child {
+	margin-top: 0;
+}
+
+.fw-seo-browser-row {
+	display: block;
+	width: 100%;
+	padding: 8px 10px;
+	border: 0;
+	border-radius: 3px;
+	background: none;
+	text-align: left;
+	cursor: pointer;
+}
+
+.fw-seo-browser-row:hover,
+.fw-seo-browser-row:focus {
+	background: #f0f6fc;
+}
+
+.fw-seo-browser-row code {
+	background: #f0f0f1;
+	color: #2271b1;
+	font-size: 12px;
+}
+
+.fw-seo-browser-label {
+	margin-left: 8px;
+	color: #1d2327;
+	font-size: 13px;
+}
+
+.fw-seo-browser-desc,
+.fw-seo-browser-example {
+	display: block;
+	margin-top: 2px;
+	color: #646970;
+	font-size: 12px;
+}
+
+.fw-seo-browser-example {
+	color: #2271b1;
+}
+
+.fw-seo-browser-empty {
+	padding: 20px 4px;
+	color: #646970;
+	text-align: center;
+}
