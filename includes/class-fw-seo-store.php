@@ -315,7 +315,7 @@ class FW_SEO_Store {
 	 *
 	 * @return bool
 	 */
-	protected static function is_empty( $value ) {
+	public static function is_empty( $value ) {
 		if ( is_array( $value ) ) {
 			return ! $value;
 		}

@@ -6,8 +6,20 @@
  * very different amount of room.
  */
 
+/*
+ * No negative margin here.
+ *
+ * It used to be `margin: -6px -12px -12px`, pulling the panel out to the
+ * postbox edges on the assumption that framework metaboxes bleed their content
+ * that way. They do not: an options metabox renders straight into `.inside`,
+ * which already carries no horizontal padding — so the offset pushed the panel
+ * 11px PAST its own container on both sides.
+ *
+ * Measured against the Page Settings metabox on the same screen: its content
+ * sits flush with `.inside`, and now so does ours.
+ */
 .fw-seo-metabox {
-	margin: -6px -12px -12px;
+	margin: 0;
 }
 
 .fw-seo-metabox .fw-backend-option {

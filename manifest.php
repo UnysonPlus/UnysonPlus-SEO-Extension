@@ -11,7 +11,7 @@ $manifest['description'] = __(
 	'fw'
 );
 
-$manifest['version']    = '2.0.9';
+$manifest['version']    = '2.0.11';
 $manifest['display']    = true;
 $manifest['standalone'] = true;
 
@@ -33,6 +33,47 @@ $manifest['requires_wp']  = '5.8';
 /**
  * Changelog
  * -----------------------------------------------------------------------------
+ * 2.0.10 - Import from Yoast, Rank Math, SEOPress and All in One SEO.
+ *
+ *         An adoption feature, not a convenience one: a site with three
+ *         hundred hand-written descriptions could not switch to this
+ *         extension at all, however good the engine was.
+ *
+ *         The part that is NOT a mapping table is the template tags. Every one
+ *         of these plugins has its own syntax, and Yoast's is almost identical
+ *         to ours — which is the trap, because it makes the whole job look
+ *         like a copy loop. Import a Rank Math title verbatim and `%title%` is
+ *         an unrecognised tag, so it renders as NOTHING: the page silently
+ *         loses its title and the owner finds out from Search Console weeks
+ *         later. Tags are translated per source, longest-match first so
+ *         `%%category_description%%` is not eaten by `%%category%%`.
+ *
+ *         A tag with no counterpart is LEFT IN the value and reported, never
+ *         stripped. Deleting it would leave a title that reads fine and is
+ *         quietly missing a word.
+ *
+ *         Three properties the tests pin, because each would do damage
+ *         silently:
+ *           - A second import never overwrites what you have written here
+ *             since the first, unless overwrite is asked for explicitly.
+ *           - Another plugin's "use the default" (Yoast writes 2 for index)
+ *             does not become an explicit switch here — otherwise an import
+ *             turns a site's defaults into hundreds of hard-coded overrides.
+ *           - An empty source value is not imported as an empty override.
+ *
+ *         AIOSEO v4 keeps its data in its own table rather than post meta, so
+ *         that source reads differently from the other three.
+ *
+ *         Batched over AJAX at 100 posts a time. One long request on a large
+ *         site would race PHP's time limit, and a timeout halfway through is
+ *         the worst available outcome: partly imported, with nothing saying
+ *         how far it got.
+ *
+ *         NOTE: the meta key names come from each plugin's documented storage,
+ *         not from a site with them installed. Worth confirming against real
+ *         data before relying on it — a wrong key finds nothing rather than
+ *         corrupting anything, so the failure mode is safe but silent.
+ *
  * 2.0.9 - Settings move to Unyson+ → SEO.
  *
  *         They were reachable only through the Extensions manager, which is

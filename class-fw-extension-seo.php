@@ -50,6 +50,7 @@ class FW_Extension_SEO extends FW_Extension {
 		require_once $includes . 'class-fw-seo-content.php';
 		require_once $includes . 'class-fw-seo-image.php';
 		require_once $includes . 'class-fw-seo-schema.php';
+		require_once $includes . 'class-fw-seo-import.php';
 		require_once $includes . 'class-fw-seo-store.php';
 		require_once $includes . 'class-fw-seo-locations.php';
 		require_once $includes . 'class-fw-seo-settings.php';
@@ -435,6 +436,8 @@ class FW_Extension_SEO extends FW_Extension {
 		new FW_SEO_Admin( $this );
 		new FW_SEO_List( $this );
 		new FW_SEO_Settings_Page( $this );
+
+		FW_SEO_Import::init();
 	}
 
 	/**

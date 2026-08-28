@@ -97,6 +97,27 @@ class FW_SEO_Settings_Page {
 		}
 
 		fw()->backend->enqueue_options_static( $this->extension->get_settings_options() );
+
+		wp_enqueue_script(
+			'fw-ext-seo-import',
+			$this->extension->get_declared_URI( '/static/js/import.js' ),
+			[],
+			$this->extension->manifest->get_version(),
+			true
+		);
+
+		wp_localize_script( 'fw-ext-seo-import', 'fwSeoImport', [
+			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+			'nonce'   => wp_create_nonce( FW_SEO_Import::NONCE ),
+			'i18n'    => [
+				'working'          => __( 'Imported %1$s of %2$s…', 'fw' ),
+				'done'             => __( 'Finished. %1$s posts updated, %2$s values imported.', 'fw' ),
+				'failed'           => __( 'The import stopped before finishing. Nothing already imported was lost — run it again to continue.', 'fw' ),
+				'unknownTitle'     => __( 'Some template tags had no equivalent here', 'fw' ),
+				'unknownBody'      => __( 'They were left in the imported text exactly as they were, so nothing is lost — but they will render as nothing until you replace them. Search for them in the fields you have imported.', 'fw' ),
+				'confirmOverwrite' => __( 'This will replace SEO values you have already written here. Continue?', 'fw' ),
+			],
+		] );
 	}
 
 	/**
@@ -185,6 +206,7 @@ class FW_SEO_Settings_Page {
 					   data-tab="<?php echo esc_attr( $tab_id ); ?>"><?php echo esc_html( $tab['title'] ?? $tab_id ); ?></a>
 					<?php $first = false; ?>
 				<?php endforeach; ?>
+				<a href="#import_tab" class="nav-tab" data-tab="import_tab"><?php esc_html_e( 'Import', 'fw' ); ?></a>
 			</h2>
 
 			<form method="post" action="">
@@ -203,6 +225,10 @@ class FW_SEO_Settings_Page {
 					<button type="submit" class="button button-primary"><?php esc_html_e( 'Save Changes', 'fw' ); ?></button>
 				</p>
 			</form>
+
+			<div class="fw-seo-panel" id="panel-import_tab">
+				<?php echo $this->import_panel(); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in the panel. ?>
+			</div>
 		</div>
 
 		<style>
@@ -210,6 +236,8 @@ class FW_SEO_Settings_Page {
 		.fw-ext-seo-settings .fw-seo-tabs .nav-tab{border-radius:.25rem .25rem 0 0}
 		.fw-ext-seo-settings .fw-seo-panel{display:none}
 		.fw-ext-seo-settings .fw-seo-panel.is-active{display:block}
+		.fw-ext-seo-settings .fw-seo-import-bar{height:6px;border-radius:3px;background:#dcdcde;overflow:hidden}
+		.fw-ext-seo-settings .fw-seo-import-bar span{display:block;height:100%;width:0;background:#2271b1;transition:width .2s ease}
 		</style>
 		<script>
 		( function () {
@@ -249,5 +277,75 @@ class FW_SEO_Settings_Page {
 		}() );
 		</script>
 		<?php
+	}
+
+	/**
+	 * The Import panel.
+	 *
+	 * Not part of `settings-options.php`: it is an action, not a setting, and
+	 * putting a button that rewrites three hundred posts inside a form whose
+	 * other control is "Save Changes" invites pressing it by accident.
+	 *
+	 * @return string
+	 */
+	protected function import_panel() {
+		$available = FW_SEO_Import::available();
+
+		ob_start();
+		?>
+		<div class="fw-seo-import">
+			<?php if ( ! $available ) : ?>
+				<div class="notice notice-info inline" style="margin:0">
+					<p>
+						<?php esc_html_e( 'No SEO data from another plugin was found on this site. Yoast SEO, Rank Math, SEOPress and All in One SEO can all be imported — the plugin does not need to be active, only its data still present.', 'fw' ); ?>
+					</p>
+				</div>
+			<?php else : ?>
+				<p class="description" style="max-width:46em">
+					<?php esc_html_e( 'Titles, descriptions, canonical URLs, indexing switches and sharing cards are brought across, and each plugin\'s template tags are translated into ours. Anything already written here is left alone unless you tick the box below.', 'fw' ); ?>
+				</p>
+
+				<table class="widefat striped" style="max-width:46em;margin:1em 0">
+					<thead>
+						<tr>
+							<th><?php esc_html_e( 'Found', 'fw' ); ?></th>
+							<th style="width:9em"><?php esc_html_e( 'Posts', 'fw' ); ?></th>
+							<th style="width:11em"></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $available as $id => $info ) : ?>
+							<tr>
+								<td><strong><?php echo esc_html( $info['label'] ); ?></strong></td>
+								<td><?php echo esc_html( number_format_i18n( $info['count'] ) ); ?></td>
+								<td>
+									<button type="button" class="button fw-seo-import-run"
+											data-source="<?php echo esc_attr( $id ); ?>">
+										<?php esc_html_e( 'Import', 'fw' ); ?>
+									</button>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+
+				<p>
+					<label>
+						<input type="checkbox" id="fw-seo-import-overwrite" />
+						<?php esc_html_e( 'Overwrite values already set here', 'fw' ); ?>
+					</label>
+				</p>
+
+				<div class="fw-seo-import-progress" style="display:none;max-width:46em">
+					<div class="fw-seo-import-bar"><span></span></div>
+					<p class="fw-seo-import-status" style="margin:.5em 0 0"></p>
+				</div>
+
+				<div class="fw-seo-import-report" style="display:none;max-width:46em"></div>
+			<?php endif; ?>
+		</div>
+		<?php
+
+		return (string) ob_get_clean();
 	}
 }
