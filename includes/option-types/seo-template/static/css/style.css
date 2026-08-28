@@ -53,8 +53,8 @@
 }
 
 .fw-seo-template-editor:focus {
-	border-color: #2271b1;
-	box-shadow: 0 0 0 1px #2271b1;
+	border-color: var(--fw-accent, #2271b1);
+	box-shadow: 0 0 0 1px var(--fw-accent, #2271b1);
 	outline: 2px solid transparent;
 }
 
@@ -83,7 +83,7 @@
 	border: 1px solid #c5d9ed;
 	border-radius: 10px;
 	background: #f0f6fc;
-	color: #2271b1;
+	color: var(--fw-accent, #2271b1);
 	font-size: 12px;
 	line-height: 1.6;
 	white-space: nowrap;
@@ -154,8 +154,8 @@ textarea.fw-seo-template-input {
 }
 
 .fw-seo-preview-mode.is-active {
-	border-color: #2271b1;
-	background: #2271b1;
+	border-color: var(--fw-accent, #2271b1);
+	background: var(--fw-accent, #2271b1);
 	color: #fff;
 }
 
@@ -303,7 +303,7 @@ textarea.fw-seo-template-input {
 
 .fw-seo-browser-row code {
 	background: #f0f0f1;
-	color: #2271b1;
+	color: var(--fw-accent, #2271b1);
 	font-size: 12px;
 }
 
@@ -322,7 +322,7 @@ textarea.fw-seo-template-input {
 }
 
 .fw-seo-browser-example {
-	color: #2271b1;
+	color: var(--fw-accent, #2271b1);
 }
 
 .fw-seo-browser-empty {

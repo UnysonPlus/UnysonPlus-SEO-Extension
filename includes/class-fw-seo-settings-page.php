@@ -237,7 +237,7 @@ class FW_SEO_Settings_Page {
 		.fw-ext-seo-settings .fw-seo-panel{display:none}
 		.fw-ext-seo-settings .fw-seo-panel.is-active{display:block}
 		.fw-ext-seo-settings .fw-seo-import-bar{height:6px;border-radius:3px;background:#dcdcde;overflow:hidden}
-		.fw-ext-seo-settings .fw-seo-import-bar span{display:block;height:100%;width:0;background:#2271b1;transition:width .2s ease}
+		.fw-ext-seo-settings .fw-seo-import-bar span{display:block;height:100%;width:0;background:var(--fw-accent, #3858e9);transition:width .2s ease}
 		</style>
 		<script>
 		( function () {
