@@ -35,7 +35,17 @@
  * text field so the swap is invisible.
  */
 .fw-seo-template-editor {
-	min-height: 30px;
+	/*
+	 * One text line, no more.
+	 *
+	 * This was 30px, which is TALLER than the line it holds: a chip is 23.2px,
+	 * so the extra 6.8px became slack that all fell below the content, leaving
+	 * the chips sitting visibly high in the field. Sized to the line instead,
+	 * the padding alone decides the height and the content is centred by
+	 * construction. The multiline variant below keeps its taller box, where
+	 * content correctly starts at the top.
+	 */
+	min-height: 21px;
 	padding: 5px 8px;
 	border: 1px solid #8c8f94;
 	border-radius: 4px;
@@ -78,6 +88,16 @@
  */
 .fw-seo-chip {
 	display: inline-block;
+	/*
+	 * Centred on the text, not sat on its baseline.
+	 *
+	 * An inline-block defaults to `vertical-align: baseline`, which lines up
+	 * the chip's OWN last baseline with the surrounding text baseline. Because
+	 * the chip is taller than the line, that pushed it 6.8px high and inflated
+	 * the line box underneath it — the editor measured 42px tall to hold 23px
+	 * of chip. `middle` centres the box itself.
+	 */
+	vertical-align: middle;
 	margin: 0 1px;
 	padding: 1px 8px;
 	border: 1px solid #c5d9ed;
