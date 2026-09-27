@@ -57,6 +57,8 @@ class FW_Extension_SEO extends FW_Extension {
 		require_once $includes . 'class-fw-seo-chain.php';
 		require_once $includes . 'class-fw-seo-head.php';
 		require_once $includes . 'class-fw-seo-sitemap.php';
+		// AI Assistant abilities (only registered while that extension is active).
+		require_once $includes . 'ai-abilities.php';
 
 		// The sitemap wires itself on both sides: the rewrite rules must exist
 		// for the admin's permalink flush, not only for the front end.

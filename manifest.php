@@ -11,7 +11,7 @@ $manifest['description'] = __(
 	'fw'
 );
 
-$manifest['version']    = '2.0.13';
+$manifest['version']    = '2.0.14';
 $manifest['display']    = true;
 $manifest['standalone'] = true;
 
@@ -33,6 +33,12 @@ $manifest['requires_wp']  = '5.8';
 /**
  * Changelog
  * -----------------------------------------------------------------------------
+ * 2.0.14 - AI Assistant abilities. With the AI Assistant extension active: seo-get-page
+ *         (what a page really outputs and where each value comes from),
+ *         seo-update-page (set / clear per-page overrides, undoable) and seo-audit
+ *         (missing, long, auto-generated or duplicate titles / descriptions, noindex)
+ *         — see includes/ai-abilities.php.
+ *
  * 2.0.10 - Import from Yoast, Rank Math, SEOPress and All in One SEO.
  *
  *         An adoption feature, not a convenience one: a site with three
