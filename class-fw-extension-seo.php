@@ -51,6 +51,7 @@ class FW_Extension_SEO extends FW_Extension {
 		require_once $includes . 'class-fw-seo-image.php';
 		require_once $includes . 'class-fw-seo-schema.php';
 		require_once $includes . 'class-fw-seo-import.php';
+		require_once $includes . 'class-fw-seo-conflict.php';
 		require_once $includes . 'class-fw-seo-store.php';
 		require_once $includes . 'class-fw-seo-locations.php';
 		require_once $includes . 'class-fw-seo-settings.php';
@@ -80,6 +81,22 @@ class FW_Extension_SEO extends FW_Extension {
 	// -------------------------------------------------------------------------
 
 	protected function add_theme_hooks() {
+		// Another SEO plugin is running: attach nothing at all.
+		//
+		// Not "emit less" — attach NOTHING, because several of these hooks have
+		// side effects beyond printing. _action_resolve_context() removes core's
+		// rel_canonical, and _filter_robots() takes over wp_robots; doing either
+		// while Yoast owns the output would damage the page we are standing
+		// aside from. The parent theme stands down on the same detection, so the
+		// result is exactly one thing describing the page.
+		//
+		// Safe to read here: this tests constants and classes other plugins
+		// define, never the extension settings — reading those during _init is
+		// what fatals every page-builder page.
+		if ( ! FW_SEO_Conflict::should_emit() ) {
+			return;
+		}
+
 		add_action( 'wp', [ $this, '_action_resolve_context' ], 5 );
 
 		// 999 so a theme that sets its own title has already had its say.
@@ -440,6 +457,7 @@ class FW_Extension_SEO extends FW_Extension {
 		new FW_SEO_Settings_Page( $this );
 
 		FW_SEO_Import::init();
+		FW_SEO_Conflict::init();
 	}
 
 	/**

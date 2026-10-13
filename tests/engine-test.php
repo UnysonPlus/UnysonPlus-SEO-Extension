@@ -30,6 +30,21 @@ foreach ( [
 	require_once $base . $file;
 }
 
+
+/**
+ * The site title as the ENGINE yields it.
+ *
+ * FW_SEO_Tags decodes entities on purpose: the value is held as real characters
+ * and escaped once, at output. Comparing against the still-escaped
+ * get_bloginfo('name') passes only while the title contains nothing that needs
+ * escaping — which is why these assertions sailed through until a site whose
+ * name contains "&" came along.
+ *
+ * @return string
+ */
+function fw_seo_test_sitename() {
+	return wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+}
 class T {
 	public static $pass = 0;
 	public static $fail = 0;
@@ -83,13 +98,13 @@ t(
 t(
 	'separator tag resolves',
 	FW_SEO_Tags::render( '%%title%% %%sep%% %%sitename%%', $ctx ),
-	'Rebuilding the SEO engine | ' . get_bloginfo( 'name' )
+	'Rebuilding the SEO engine | ' . fw_seo_test_sitename()
 );
 
 t(
 	'an empty tag takes its orphaned separator with it',
 	FW_SEO_Tags::render( '%%title%% %%sep%% %%searchphrase%% %%sep%% %%sitename%%', $ctx ),
-	'Rebuilding the SEO engine | ' . get_bloginfo( 'name' )
+	'Rebuilding the SEO engine | ' . fw_seo_test_sitename()
 );
 
 t(
@@ -203,7 +218,7 @@ echo "\nValue chain\n";
 t(
 	'title falls through to the shipped template',
 	FW_SEO_Chain::resolve( 'title', $ctx ),
-	'Rebuilding the SEO engine | ' . get_bloginfo( 'name' )
+	'Rebuilding the SEO engine | ' . fw_seo_test_sitename()
 );
 
 t(

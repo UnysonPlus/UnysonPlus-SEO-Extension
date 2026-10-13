@@ -77,10 +77,9 @@ class FW_SEO_Schema {
 	 * @return string
 	 */
 	public static function default_type( $post_type ) {
-		// A hierarchical type is a page; everything else behaves like a post.
-		$object = get_post_type_object( $post_type );
-
-		return ( $object && ! $object->hierarchical ) ? 'BlogPosting' : 'WebPage';
+		// Only the blog's own posts are blog posts. A custom type (team members, services,
+		// properties, jobs) is not one, so it starts as a plain web page until set otherwise.
+		return 'post' === $post_type ? 'BlogPosting' : 'WebPage';
 	}
 
 	/**

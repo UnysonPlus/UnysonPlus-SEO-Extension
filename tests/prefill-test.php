@@ -18,6 +18,18 @@ require_once WP_PLUGIN_DIR . '/unysonplus/framework/extensions/seo/includes/clas
 
 wp_set_current_user( 1 );
 
+/**
+ * The site title as the ENGINE yields it.
+ *
+ * FW_SEO_Tags decodes entities on purpose: the value is held as real
+ * characters and escaped once, at output. Comparing against the still-escaped
+ * get_bloginfo() passes only while the title contains nothing needing escaping
+ * — which is why this sailed through until a site whose name contains "&".
+ */
+function fw_seo_test_sitename() {
+	return wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+}
+
 class PT { public static $pass = 0; public static $fail = 0; }
 
 function t( $label, $actual, $expected ) {
@@ -124,7 +136,7 @@ FW_SEO_Tags::flush();
 t(
 	'the stored override resolves its own tags on the front end',
 	FW_SEO_Chain::resolve( 'title', FW_SEO_Context::for_post( $post_id ) ),
-	'A hand-written title | ' . get_bloginfo( 'name' )
+	'A hand-written title | ' . fw_seo_test_sitename()
 );
 
 // --- Whitespace should not read as an edit ---------------------------------
@@ -200,7 +212,7 @@ t(
 		FW_SEO_Settings::template( 'title', FW_SEO_Context::for_post( $post_id ) ),
 		FW_SEO_Context::for_post( $post_id )
 	),
-	'Prefill fixture post | ' . get_bloginfo( 'name' )
+	'Prefill fixture post | ' . fw_seo_test_sitename()
 );
 
 wp_delete_post( $post_id, true );

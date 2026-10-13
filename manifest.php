@@ -11,7 +11,7 @@ $manifest['description'] = __(
 	'fw'
 );
 
-$manifest['version']    = '2.0.14';
+$manifest['version']    = '2.0.16';
 $manifest['display']    = true;
 $manifest['standalone'] = true;
 
@@ -33,6 +33,36 @@ $manifest['requires_wp']  = '5.8';
 /**
  * Changelog
  * -----------------------------------------------------------------------------
+ * 2.0.15 - Stand down when another SEO plugin is active, instead of competing.
+ *
+ *          Yoast, Rank Math, SEOPress, AIOSEO, The SEO Framework and Slim SEO
+ *          are detected by the constant/class each defines — which survives a
+ *          renamed folder or an mu-plugin install — and the extension then
+ *          attaches NO front-end hooks at all.
+ *
+ *          Not "emit less": attach nothing. Several of those hooks have side
+ *          effects beyond printing — resolving the context removes core's
+ *          rel_canonical, and the robots filter takes over wp_robots — so
+ *          half-running would damage the page we are standing aside from. Two
+ *          canonicals is worse than either alone, because a search engine is
+ *          entitled to ignore both.
+ *
+ *          The admin side keeps working, so every stored value survives and
+ *          returns the moment the other plugin is switched off. An admin notice
+ *          explains what stood down and offers the two ways out (keep theirs,
+ *          or import from it and keep ours); dismissal is remembered against
+ *          the plugin it was about, so installing a DIFFERENT one later raises
+ *          it again rather than inheriting a dismissal that was never about it.
+ *
+ *          `fw_seo_should_emit` forces emission back on for a site that has
+ *          silenced the other plugin itself.
+ *
+ *          The new shared detector `fw_upw_seo_plugin_active()` lives in core
+ *          (framework/includes/seo-plugin-detect.php) because the default
+ *          extension seed needs it before any extension loads: SEO is now
+ *          seeded ON for a new site, but only when nothing else is already
+ *          doing the job.
+ *
  * 2.0.14 - AI Assistant abilities. With the AI Assistant extension active: seo-get-page
  *         (what a page really outputs and where each value comes from),
  *         seo-update-page (set / clear per-page overrides, undoable) and seo-audit

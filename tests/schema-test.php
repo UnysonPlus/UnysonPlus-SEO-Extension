@@ -183,6 +183,7 @@ echo "\nPer-type configuration\n";
 
 tsc( 'a post defaults to a blog post', FW_SEO_Schema::default_type( 'post' ), 'BlogPosting' );
 tsc( 'a page defaults to a web page', FW_SEO_Schema::default_type( 'page' ), 'WebPage' );
+tsc( 'a custom post type is not a blog post', FW_SEO_Schema::default_type( 'team_member' ), 'WebPage' );
 
 tsc(
 	'"no structured data" is an available choice, not a hidden filter',
