@@ -52,6 +52,7 @@ class FW_Extension_SEO extends FW_Extension {
 		require_once $includes . 'class-fw-seo-schema.php';
 		require_once $includes . 'class-fw-seo-import.php';
 		require_once $includes . 'class-fw-seo-conflict.php';
+		require_once $includes . 'class-fw-seo-csv.php';
 		require_once $includes . 'class-fw-seo-store.php';
 		require_once $includes . 'class-fw-seo-locations.php';
 		require_once $includes . 'class-fw-seo-settings.php';
@@ -458,6 +459,7 @@ class FW_Extension_SEO extends FW_Extension {
 
 		FW_SEO_Import::init();
 		FW_SEO_Conflict::init();
+		FW_SEO_CSV::init();
 	}
 
 	/**

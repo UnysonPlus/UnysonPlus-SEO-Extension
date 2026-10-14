@@ -206,10 +206,10 @@ class FW_SEO_Settings_Page {
 					   data-tab="<?php echo esc_attr( $tab_id ); ?>"><?php echo esc_html( $tab['title'] ?? $tab_id ); ?></a>
 					<?php $first = false; ?>
 				<?php endforeach; ?>
-				<a href="#import_tab" class="nav-tab" data-tab="import_tab"><?php esc_html_e( 'Import', 'fw' ); ?></a>
+				<a href="#import_tab" class="nav-tab" data-tab="import_tab"><?php esc_html_e( 'Import/Export', 'fw' ); ?></a>
 			</h2>
 
-			<form method="post" action="">
+			<form method="post" action="" id="fw-seo-settings-form">
 				<?php wp_nonce_field( self::NONCE ); ?>
 				<?php $first = true; foreach ( $tabs as $tab_id => $tab ) : ?>
 					<div class="fw-seo-panel<?php echo $first ? ' is-active' : ''; ?>" id="panel-<?php echo esc_attr( $tab_id ); ?>">
@@ -236,6 +236,28 @@ class FW_SEO_Settings_Page {
 		.fw-ext-seo-settings .fw-seo-tabs .nav-tab{border-radius:.25rem .25rem 0 0}
 		.fw-ext-seo-settings .fw-seo-panel{display:none}
 		.fw-ext-seo-settings .fw-seo-panel.is-active{display:block}
+
+		/* Location headings on Titles & Meta.
+		   They are html-full options, so the skin renders each one like an input
+		   row: a grey input column and field-sized padding around an 18px
+		   heading, which reads as a filled bar rather than a label. Undo the row
+		   chrome and let the heading be a quiet section rule instead. */
+		body .fw-ext-seo-settings .fw-backend-option-type-html-full{margin:0;padding:0;border:0}
+		/* `body` to match the Admin Skin, which styles every html-full option as a
+		   callout panel — with !important, so matching it needs one too. That
+		   styling is right for a callout and wrong for a heading. */
+		body .fw-ext-seo-settings .fw-backend-option-type-html-full .fw-inner{background:transparent!important;border-color:transparent!important}
+		.fw-ext-seo-settings .fw-seo-settings-heading{
+			margin:0;padding:1.6em 20px .7em;
+			border-top:1px solid #e6e6ea;
+			font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+			color:#646970;
+		}
+		/* The first one sits directly under the box title; a rule there would
+		   double up with the box's own border. */
+		.fw-ext-seo-settings .fw-backend-option-type-html-full:first-child .fw-seo-settings-heading{
+			border-top:0;padding-top:1em;
+		}
 		.fw-ext-seo-settings .fw-seo-import-bar{height:6px;border-radius:3px;background:#dcdcde;overflow:hidden}
 		.fw-ext-seo-settings .fw-seo-import-bar span{display:block;height:100%;width:0;background:var(--fw-accent, #3858e9);transition:width .2s ease}
 		</style>
@@ -254,6 +276,19 @@ class FW_SEO_Settings_Page {
 				each( wrap.querySelectorAll( '.fw-seo-panel' ), function ( p ) {
 					p.classList.toggle( 'is-active', p.id === 'panel-' + tab );
 				} );
+
+				// Hide the whole settings form on Import/Export.
+				//
+				// Its panels hide with everything else, but "Save Changes" lives
+				// on the FORM, not in a panel — so it used to sit at the top of a
+				// tab with nothing to save. That tab has its own buttons; a
+				// Save Changes there is answering a question nobody asked, and
+				// disabling it would only raise the same question more quietly.
+				var form = document.getElementById( 'fw-seo-settings-form' );
+
+				if ( form ) {
+					form.style.display = ( 'import_tab' === tab ) ? 'none' : '';
+				}
 			}
 
 			each( wrap.querySelectorAll( '.fw-seo-tabs .nav-tab' ), function ( a ) {
@@ -273,7 +308,14 @@ class FW_SEO_Settings_Page {
 
 			var hash = ( window.location.hash || '' ).replace( /^#/, '' );
 
-			if ( hash && wrap.querySelector( '#panel-' + hash ) ) { activate( hash ); }
+			if ( hash && wrap.querySelector( '#panel-' + hash ) ) {
+				activate( hash );
+			} else if ( /[?&]fw-seo-csv=/.test( window.location.search ) ) {
+				// Arriving back from a CSV upload or apply. Without this the
+				// redirect lands on the first tab and the preview — the whole
+				// reason for the round trip — is sitting on a tab nobody opened.
+				activate( 'import_tab' );
+			}
 		}() );
 		</script>
 		<?php
@@ -343,7 +385,125 @@ class FW_SEO_Settings_Page {
 
 				<div class="fw-seo-import-report" style="display:none;max-width:46em"></div>
 			<?php endif; ?>
+
+			<?php echo $this->csv_panel(); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in the panel. ?>
 		</div>
+		<?php
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * The spreadsheet panel, below the plugin importer.
+	 *
+	 * @return string
+	 */
+	protected function csv_panel() {
+		$pending = FW_SEO_CSV::pending();
+		$notice  = isset( $_GET['fw-seo-csv'] ) ? sanitize_key( wp_unslash( $_GET['fw-seo-csv'] ) ) : '';
+
+		ob_start();
+		?>
+		<hr style="margin:2em 0 1.5em" />
+
+		<h3 style="margin:0 0 .4em"><?php esc_html_e( 'Bulk edit in a spreadsheet', 'fw' ); ?></h3>
+		<p class="description" style="max-width:46em">
+			<?php esc_html_e( 'Export every page to a CSV, edit the titles and descriptions where you can see them all at once — or hand the file to whoever writes them — then import it back. Each row carries the value the page emits today beside the one you can change, so you can tell what is worth overriding.', 'fw' ); ?>
+		</p>
+
+		<?php if ( 'done' === $notice ) : ?>
+			<div class="notice notice-success inline" style="margin:1em 0;max-width:46em"><p>
+				<?php
+				printf(
+					/* translators: 1: pages updated, 2: values changed. */
+					esc_html__( 'Imported. %1$s pages updated, %2$s values changed.', 'fw' ),
+					esc_html( number_format_i18n( (int) ( $_GET['rows'] ?? 0 ) ) ),
+					esc_html( number_format_i18n( (int) ( $_GET['changes'] ?? 0 ) ) )
+				);
+				?>
+			</p></div>
+		<?php elseif ( 'nofile' === $notice ) : ?>
+			<div class="notice notice-error inline" style="margin:1em 0;max-width:46em"><p>
+				<?php esc_html_e( 'No file arrived. Choose a .csv and try again.', 'fw' ); ?>
+			</p></div>
+		<?php endif; ?>
+
+		<p>
+			<a class="button button-secondary"
+			   href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=fw_seo_csv_export' ), 'fw_seo_csv_export' ) ); ?>">
+				<?php esc_html_e( 'Export CSV', 'fw' ); ?>
+			</a>
+		</p>
+
+		<?php if ( $pending && '' === $pending['error'] ) :
+			$preview  = FW_SEO_CSV::process( $pending['rows'], $pending['headers'], false );
+			$editable = array_intersect_key( FW_SEO_CSV::editable(), array_flip( $pending['headers'] ) );
+			?>
+			<div class="notice notice-warning inline" style="margin:1em 0;max-width:46em">
+				<p><strong><?php esc_html_e( 'Ready to import — nothing has been written yet.', 'fw' ); ?></strong></p>
+				<ul style="list-style:disc;margin-left:1.6em">
+					<li><?php
+						printf(
+							/* translators: 1: rows read, 2: pages that would change, 3: values. */
+							esc_html__( '%1$s rows read. %2$s pages would change, %3$s values in all.', 'fw' ),
+							esc_html( number_format_i18n( count( $pending['rows'] ) ) ),
+							esc_html( number_format_i18n( $preview['rows'] ) ),
+							esc_html( number_format_i18n( $preview['changes'] ) )
+						);
+					?></li>
+					<?php if ( $preview['clears'] ) : ?>
+						<li><strong><?php
+							printf(
+								/* translators: %s: number of values. */
+								esc_html__( '%s values would be CLEARED (the cell is empty), putting those pages back on their template.', 'fw' ),
+								esc_html( number_format_i18n( $preview['clears'] ) )
+							);
+						?></strong></li>
+					<?php endif; ?>
+					<li><?php
+						printf(
+							/* translators: %s: comma-separated column names. */
+							esc_html__( 'Columns that will be written: %s. Anything not in the file is left alone.', 'fw' ),
+							esc_html( implode( ', ', array_keys( $editable ) ) ?: __( 'none', 'fw' ) )
+						);
+					?></li>
+					<?php if ( $preview['missing'] ) : ?>
+						<li><?php
+							printf(
+								/* translators: %s: number of rows. */
+								esc_html__( '%s rows refer to posts that are not on this site. They are ignored — nothing is created or removed.', 'fw' ),
+								esc_html( number_format_i18n( count( $preview['missing'] ) ) )
+							);
+						?></li>
+					<?php endif; ?>
+				</ul>
+				<p>
+					<a class="button button-primary"
+					   href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=fw_seo_csv_apply' ), 'fw_seo_csv_apply' ) ); ?>">
+						<?php esc_html_e( 'Apply these changes', 'fw' ); ?>
+					</a>
+					<a class="button"
+					   href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=fw_seo_csv_cancel' ), 'fw_seo_csv_cancel' ) ); ?>">
+						<?php esc_html_e( 'Discard', 'fw' ); ?>
+					</a>
+				</p>
+			</div>
+		<?php elseif ( $pending ) : ?>
+			<div class="notice notice-error inline" style="margin:1em 0;max-width:46em">
+				<p><?php echo esc_html( $pending['error'] ); ?></p>
+				<p><a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=fw_seo_csv_cancel' ), 'fw_seo_csv_cancel' ) ); ?>"><?php esc_html_e( 'Discard', 'fw' ); ?></a></p>
+			</div>
+		<?php else : ?>
+			<form method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:.5em">
+				<input type="hidden" name="action" value="fw_seo_csv_upload" />
+				<?php wp_nonce_field( 'fw_seo_csv_upload' ); ?>
+				<input type="file" name="fw_seo_csv_file" accept=".csv,text/csv" required />
+				<button type="submit" class="button"><?php esc_html_e( 'Upload and preview', 'fw' ); ?></button>
+			</form>
+			<p class="description" style="max-width:46em;margin-top:.6em">
+				<?php esc_html_e( 'Rows are matched on post ID. A row for a post that is not here is ignored — importing never creates or deletes a post, and never touches anything but its SEO fields.', 'fw' ); ?>
+			</p>
+		<?php endif; ?>
 		<?php
 
 		return (string) ob_get_clean();

@@ -89,7 +89,10 @@ $fw_seo_box = static function ( $group_key, $title, $description, array $locatio
 		$inner[ 'heading__' . FW_SEO_Locations::slug( $location['key'] ) ] = [
 			'type'  => 'html-full',
 			'label' => false,
-			'value' => '<h4 class="fw-seo-settings-heading">' . esc_html( $location['label'] ) . '</h4>',
+			// The markup goes in `html`, NOT `value`: the option type reads that key
+			// and otherwise falls back to its own "default html" placeholder — which
+			// is exactly what every one of these headings was rendering.
+			'html'  => '<h4 class="fw-seo-settings-heading">' . esc_html( $location['label'] ) . '</h4>',
 		];
 
 		$inner[ 'group__' . FW_SEO_Locations::slug( $location['key'] ) ] = $builder( $location );

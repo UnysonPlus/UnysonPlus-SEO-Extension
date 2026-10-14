@@ -11,7 +11,7 @@ $manifest['description'] = __(
 	'fw'
 );
 
-$manifest['version']    = '2.0.16';
+$manifest['version']    = '2.0.20';
 $manifest['display']    = true;
 $manifest['standalone'] = true;
 
@@ -33,6 +33,42 @@ $manifest['requires_wp']  = '5.8';
 /**
  * Changelog
  * -----------------------------------------------------------------------------
+ * 2.0.17 - Bulk edit in a spreadsheet: CSV export and import.
+ *
+ *          A different job from the plugin importer beside it. That one reads
+ *          Yoast and friends; this round-trips your OWN values, so three
+ *          hundred descriptions can be written where they can all be seen at
+ *          once — or handed to whoever writes them, who will never log in.
+ *
+ *          Each row carries the RESOLVED title and description as read-only
+ *          context beside the editable override. Without seeing what a page
+ *          emits today you cannot tell which rows are worth touching, and you
+ *          end up overriding pages that were already fine.
+ *
+ *          Import is a site-wide write, so it is fenced:
+ *            - Rows match on post ID only. Titles repeat and slugs change; a
+ *              fuzzy match writes one page's description onto another.
+ *            - It writes SEO META ONLY — never creates a post, never deletes
+ *              one, never touches content, title, status, dates or terms. A row
+ *              for a post that is not here is reported and ignored; an id that
+ *              is absent from the file is never visited.
+ *            - Only columns PRESENT in the file are considered, so a hand-built
+ *              two-column sheet cannot blank everything else.
+ *            - Within a present column an empty cell CLEARS the override, which
+ *              matches "empty means follow the template" everywhere else — and
+ *              because the export writes the current override into the cell, a
+ *              blank-in/blank-out round trip changes nothing. Clears are counted
+ *              separately in the preview so they are never silent.
+ *            - Nothing is written until a preview has been shown and confirmed.
+ *
+ *          Two details that quietly ruin CSV in practice are handled: the file
+ *          carries a UTF-8 BOM (without it a spreadsheet reads it as the system
+ *          codepage and mangles every accent), and any value beginning =, +, -
+ *          or @ is tab-prefixed on the way out and unprefixed on the way back.
+ *          Those characters make a cell a FORMULA, so an exported description
+ *          starting with a dash would otherwise run code on the machine of
+ *          whoever opened the file.
+ *
  * 2.0.15 - Stand down when another SEO plugin is active, instead of competing.
  *
  *          Yoast, Rank Math, SEOPress, AIOSEO, The SEO Framework and Slim SEO
