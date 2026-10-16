@@ -11,7 +11,7 @@ $manifest['description'] = __(
 	'fw'
 );
 
-$manifest['version']    = '2.0.24';
+$manifest['version']    = '2.0.28';
 $manifest['display']    = true;
 $manifest['standalone'] = true;
 
@@ -25,6 +25,13 @@ $manifest['author']     = 'UnysonPlus';
 $manifest['author_uri'] = 'https://www.lastimosa.com.ph/unysonplus';
 
 // Meta
+// Requirements
+$manifest['requirements'] = array(
+	'framework' => array(
+		'min_version' => '3.0.49', // class FW_Admin_App — the admin app shell these screens render inside.
+	),
+);
+
 $manifest['license']      = 'GPL-2.0-or-later';
 $manifest['text_domain']  = 'fw';
 $manifest['requires_php'] = '7.4';
@@ -33,6 +40,55 @@ $manifest['requires_wp']  = '5.8';
 /**
  * Changelog
  * -----------------------------------------------------------------------------
+ * 2.0.26 - Search Console: your own data, shown where you can act on it.
+ *
+ *          Setup is a seven-step walkthrough in the box itself, with links
+ *          straight to the Google Cloud pages and a copy button for the
+ *          redirect URI, rather than two fields and a sentence. The two
+ *          things that otherwise send people to a search engine are named
+ *          BEFORE they are hit: the unverified-app warning Google shows for
+ *          your own client, and the consent screen having to be PUBLISHED.
+ *
+ *          An app left on "Testing" has its refresh tokens cancelled by
+ *          Google after exactly seven days, so a connection made last week
+ *          dies for a reason that has nothing to do with the site. The
+ *          connection date is stored and that signature is recognised, so
+ *          the error says to publish the app instead of "connect again" —
+ *          which would send someone round the same loop next week.
+ *
+ *          Read-only, connected with an OAuth client the SITE OWNER creates.
+ *          There is no shared client, no proxy and no account with us — the
+ *          site talks to Google directly and the tokens never leave its
+ *          database. That costs ten minutes of setup and is the only
+ *          arrangement consistent with everything else here working without
+ *          an account.
+ *
+ *          The headline report is "seen but not clicked": pages with plenty
+ *          of impressions and few clicks. That is a title-and-description
+ *          problem far more often than a ranking one, and both are editable
+ *          two tabs away — which is the whole reason this belongs in an SEO
+ *          extension rather than in an analytics plugin. Pages under 100
+ *          impressions are excluded, because below that one click swings the
+ *          rate and the row says nothing.
+ *
+ *          Average position is deliberately NOT presented as a ranking.
+ *          Search Console averages it across everyone who saw the result,
+ *          which varies by location, device and personalisation. It is a
+ *          trend; calling it "your position" would be a lie the UI tells
+ *          every time it loads.
+ *
+ *          Three things that fail quietly and are therefore pinned by tests:
+ *          a renewal response does NOT resend the refresh token, so absorbing
+ *          one must keep the stored value or the connection dies an hour
+ *          later; `state` is single-use, so an authorisation cannot be
+ *          replayed; and the window ends three days behind today, because
+ *          Google finishes a day late and asking for today asks for a gap.
+ *
+ *          Error reasons are kept distinct rather than collapsed into
+ *          "something went wrong": revoked, rejected credentials, no access
+ *          to the property, rate limited and network each lead somewhere
+ *          different.
+ *
  * 2.0.24 - Core Web Vitals from real visits, and the tab becomes Reports.
  *
  *          The Asset Optimizer already optimises for these metrics — it

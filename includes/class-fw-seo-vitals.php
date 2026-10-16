@@ -222,7 +222,7 @@ class FW_SEO_Vitals {
 		delete_transient( self::CACHE_KEY );
 		self::refresh();
 
-		wp_safe_redirect( admin_url( 'admin.php?page=fw-seo-settings#search_tab' ) );
+		wp_safe_redirect( FW_SEO_Settings_Page::url( 'vitals_tab' ) );
 		exit;
 	}
 

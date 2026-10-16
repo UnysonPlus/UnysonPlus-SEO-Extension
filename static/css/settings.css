@@ -1,0 +1,70 @@
+/**
+ * The SEO settings form, inside the admin app shell.
+ *
+ * The frame around it — sidebar, top bar, content column — is the framework's
+ * `FW_Admin_App` (framework/static/css/admin-app.css). What is here is only the
+ * options form that this app puts in the content column.
+ */
+
+/* One view at a time now, so the form is simply the page: no tab panels, and
+ * the submit row sits at the end of the options it saves. */
+.fw-ext-seo-settings .fw-seo-submit {
+	margin: 1.2em 0 0;
+}
+
+.fw-ext-seo-settings .fw-seo-intro {
+	max-width: 46em;
+	margin: 0 0 1.2em;
+}
+
+/* Location headings on Titles & Meta.
+   They are html-full options, so the skin renders each one like an input row: a
+   grey input column and field-sized padding around an 18px heading, which reads
+   as a filled bar rather than a label. Undo the row chrome and let the heading
+   be a quiet section rule instead. */
+body .fw-ext-seo-settings .fw-backend-option-type-html-full {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+/* `body` to match the Admin Skin, which styles every html-full option as a
+   callout panel — with !important, so matching it needs one too. That styling is
+   right for a callout and wrong for a heading. */
+body .fw-ext-seo-settings .fw-backend-option-type-html-full .fw-inner {
+	background: transparent !important;
+	border-color: transparent !important;
+}
+
+.fw-ext-seo-settings .fw-seo-settings-heading {
+	margin: 0;
+	padding: 1.6em 20px .7em;
+	border-top: 1px solid var(--upa-border, #e6e6ea);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: .05em;
+	text-transform: uppercase;
+	color: var(--upa-text3, #646970);
+}
+
+/* The first one sits directly under the box title; a rule there would double up
+   with the box's own border. */
+.fw-ext-seo-settings .fw-backend-option-type-html-full:first-child .fw-seo-settings-heading {
+	border-top: 0;
+	padding-top: 1em;
+}
+
+.fw-ext-seo-settings .fw-seo-import-bar {
+	height: 6px;
+	border-radius: 3px;
+	background: var(--upa-border2, #dcdcde);
+	overflow: hidden;
+}
+
+.fw-ext-seo-settings .fw-seo-import-bar span {
+	display: block;
+	height: 100%;
+	width: 0;
+	background: var(--upa-accent, var(--fw-accent, #3858e9));
+	transition: width .2s ease;
+}

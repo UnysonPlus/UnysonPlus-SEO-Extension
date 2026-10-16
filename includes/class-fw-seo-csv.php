@@ -482,7 +482,7 @@ class FW_SEO_CSV {
 	 * @return string
 	 */
 	protected static function back( array $args = [] ) {
-		$url = admin_url( 'admin.php?page=fw-seo-settings' );
+		$url = FW_SEO_Settings_Page::url( 'import_tab' );
 
 		return $args ? add_query_arg( $args, $url ) : $url;
 	}

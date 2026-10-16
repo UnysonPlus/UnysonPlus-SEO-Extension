@@ -323,7 +323,7 @@ class FW_SEO_Search_Log {
 
 		self::clear();
 
-		wp_safe_redirect( add_query_arg( 'fw-seo-search', 'cleared', admin_url( 'admin.php?page=fw-seo-settings' ) ) );
+		wp_safe_redirect( add_query_arg( 'fw-seo-search', 'cleared', FW_SEO_Settings_Page::url( 'search_tab' ) ) );
 		exit;
 	}
 

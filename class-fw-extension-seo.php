@@ -57,6 +57,7 @@ class FW_Extension_SEO extends FW_Extension {
 		require_once $includes . 'class-fw-seo-card.php';
 		require_once $includes . 'class-fw-seo-freshness.php';
 		require_once $includes . 'class-fw-seo-vitals.php';
+		require_once $includes . 'class-fw-seo-console.php';
 		require_once $includes . 'class-fw-seo-store.php';
 		require_once $includes . 'class-fw-seo-locations.php';
 		require_once $includes . 'class-fw-seo-settings.php';
@@ -74,6 +75,7 @@ class FW_Extension_SEO extends FW_Extension {
 		FW_SEO_Search_Log::init();
 		FW_SEO_Card::init();
 		FW_SEO_Vitals::init();
+		FW_SEO_Console::init();
 	}
 
 	/**
@@ -461,6 +463,7 @@ class FW_Extension_SEO extends FW_Extension {
 		require_once dirname( __FILE__ ) . '/includes/class-fw-seo-admin.php';
 		require_once dirname( __FILE__ ) . '/includes/class-fw-seo-list.php';
 		require_once dirname( __FILE__ ) . '/includes/class-fw-seo-settings-page.php';
+		require_once dirname( __FILE__ ) . '/includes/class-fw-seo-app.php';
 
 		new FW_SEO_Admin( $this );
 		new FW_SEO_List( $this );
@@ -469,6 +472,8 @@ class FW_Extension_SEO extends FW_Extension {
 		FW_SEO_Import::init();
 		FW_SEO_Conflict::init();
 		FW_SEO_CSV::init();
+
+		add_action( 'wp_ajax_fw_seo_focus', array( 'FW_SEO_App', '_ajax_focus' ) );
 	}
 
 	/**

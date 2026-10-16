@@ -11,15 +11,20 @@
  * you reach them from changes, so nothing that reads a setting has to know this
  * page exists.
  *
- * Follows the Site Converter's page shape (native WordPress nav-tabs, one panel
- * per tab, hash deep-linking) because a settings screen that styles its own
- * tabs sits next to one that doesn't and reads as broken.
+ * One view at a time, chosen from the sidebar in `FW_SEO_App` and addressed by
+ * `&view=<tab>`. It used to be every tab rendered at once and switched with
+ * JavaScript, which meant a row of labels that wrapped, a URL that said nothing
+ * about where you were, and — the real cost — four reports queried on every
+ * load of the page, including the three you were not looking at.
  */
 class FW_SEO_Settings_Page {
 
 	const PARENT_SLUG = 'fw-extensions';
 	const PAGE_SLUG   = 'fw-seo-settings';
 	const CAPABILITY  = 'manage_options';
+
+	/** The view a bare page URL lands on. */
+	const DEFAULT_VIEW = 'general_tab';
 	const NONCE       = 'fw_seo_settings_save';
 
 	/** @var FW_Extension_SEO */
@@ -42,10 +47,44 @@ class FW_SEO_Settings_Page {
 	}
 
 	/**
+	 * @param string $view A view to open, or '' for the default one.
+	 *
 	 * @return string
 	 */
-	public static function url() {
-		return admin_url( 'admin.php?page=' . self::PAGE_SLUG );
+	public static function url( $view = '' ) {
+		return FW_SEO_App::app()->url( $view );
+	}
+
+	/**
+	 * The view this request is for, or null when the request is not this page.
+	 *
+	 * Deliberately reads the request rather than taking a parameter: the options
+	 * schema is built by a file that has no idea which screen asked for it, and
+	 * the reports inside it are queries, not settings. See `wants()`.
+	 *
+	 * @return string|null
+	 */
+	protected static function requested_view() {
+		return FW_SEO_App::app()->requested_view();
+	}
+
+	/**
+	 * Whether a report belonging to `$view` is worth generating for this request.
+	 *
+	 * Each report in `settings-options.php` is a query — site-search totals, a
+	 * freshness scan, a Chrome UX Report fetch, a Search Console call — run while
+	 * the schema is built. With one view on screen, running the other three is
+	 * work nobody asked for. Anything that is not this page (the Extensions
+	 * manager, a programmatic read) still gets the whole tree.
+	 *
+	 * @param string $view
+	 *
+	 * @return bool
+	 */
+	public static function wants( $view ) {
+		$current = self::requested_view();
+
+		return null === $current || $view === $current;
 	}
 
 	/**
@@ -81,6 +120,8 @@ class FW_SEO_Settings_Page {
 			return;
 		}
 
+		FW_SEO_App::app()->attach( $this->hook_suffix );
+
 		// Saving happens on `load-`, before any output, so the redirect works.
 		add_action( 'load-' . $this->hook_suffix, [ $this, '_action_maybe_save' ] );
 		add_action( 'admin_enqueue_scripts', [ $this, '_action_enqueue' ] );
@@ -97,6 +138,15 @@ class FW_SEO_Settings_Page {
 		}
 
 		fw()->backend->enqueue_options_static( $this->extension->get_settings_options() );
+
+		// The frame's own CSS/JS comes from FW_Admin_App; this is the styling of
+		// the options form that sits inside it.
+		wp_enqueue_style(
+			'fw-ext-seo-settings',
+			fw_min_uri( $this->extension->get_declared_URI( '/static/css/settings.css' ) ),
+			[ 'fw-admin-app' ],
+			$this->extension->manifest->get_version()
+		);
 
 		wp_enqueue_script(
 			'fw-ext-seo-import',
@@ -135,13 +185,16 @@ class FW_SEO_Settings_Page {
 		check_admin_referer( self::NONCE );
 
 		$before = (array) fw_get_db_ext_settings_option( 'seo' );
+		$view   = $this->current_view();
+		$tabs   = $this->tabs();
 
-		// Merged over what is stored, not written wholesale: the schema rendered
-		// here is the whole settings tree, but a future partial form (or a
-		// filtered-out tab) must not silently drop the keys it never showed.
+		// Merged over what is stored, and parsed from the ONE tab that was on
+		// screen. Parsing the whole tree would read defaults for every option
+		// this form never rendered and write them over what is saved — the
+		// Sitemap tab would quietly reset Social every time it was saved.
 		$values = array_merge(
 			$before,
-			fw_get_options_values_from_input( $this->extension->get_settings_options() )
+			fw_get_options_values_from_input( (array) ( $tabs[ $view ]['options'] ?? [] ) )
 		);
 
 		fw_set_db_ext_settings_option( 'seo', null, $values );
@@ -156,7 +209,7 @@ class FW_SEO_Settings_Page {
 		 */
 		do_action( 'fw_extension_settings_form_saved:seo', $before );
 
-		wp_safe_redirect( add_query_arg( 'fw-saved', '1', self::url() ) );
+		wp_safe_redirect( add_query_arg( 'fw-saved', '1', self::url( $view ) ) );
 		exit;
 	}
 
@@ -176,6 +229,51 @@ class FW_SEO_Settings_Page {
 	}
 
 	/**
+	 * Every view in the sidebar: the schema's tabs, then Import/Export, which is
+	 * an action rather than a setting and so has no tab in the schema.
+	 *
+	 * @return array<string,string> view => label, in menu order.
+	 */
+	protected function views() {
+		return self::view_labels();
+	}
+
+	/**
+	 * The same list, readable without an instance — the sidebar is built from it
+	 * while the shell renders, which is outside this object.
+	 *
+	 * @return array<string,string> view => label, in menu order.
+	 */
+	public static function view_labels() {
+		$views = [];
+		$ext   = fw()->extensions->get( 'seo' );
+
+		if ( $ext ) {
+			foreach ( (array) $ext->get_settings_options() as $key => $entry ) {
+				if ( is_array( $entry ) && isset( $entry['type'] ) && 'tab' === $entry['type'] ) {
+					$views[ $key ] = (string) ( $entry['title'] ?? $key );
+				}
+			}
+		}
+
+		$views['import_tab'] = __( 'Import / Export', 'fw' );
+
+		return $views;
+	}
+
+	/**
+	 * The view to render: what was asked for if it exists, the default if not.
+	 *
+	 * @return string
+	 */
+	protected function current_view() {
+		$views = $this->views();
+		$view  = (string) self::requested_view();
+
+		return isset( $views[ $view ] ) ? $view : self::DEFAULT_VIEW;
+	}
+
+	/**
 	 * @internal
 	 */
 	public function render() {
@@ -183,142 +281,53 @@ class FW_SEO_Settings_Page {
 			return;
 		}
 
+		$views  = $this->views();
+		$view   = $this->current_view();
 		$tabs   = $this->tabs();
 		$values = (array) fw_get_db_ext_settings_option( 'seo' );
-		$first  = true;
-		?>
-		<div class="wrap fw-ext-seo-settings">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'SEO Settings', 'fw' ); ?></h1>
-			<p class="description">
+
+		FW_SEO_App::app()->open( $view, [
+			'title'  => $views[ $view ],
+			'crumbs' => [ [ __( 'SEO', 'fw' ), self::url() ] ],
+			'class'  => 'fw-ext-seo-settings',
+		] );
+
+		if ( isset( $_GET['fw-saved'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification
+			?>
+			<div class="notice notice-success is-dismissible">
+				<p><?php esc_html_e( 'Settings saved.', 'fw' ); ?></p>
+			</div>
+			<?php
+		endif;
+
+		if ( self::DEFAULT_VIEW === $view ) :
+			?>
+			<p class="description fw-seo-intro">
 				<?php esc_html_e( 'Titles, descriptions, sharing cards, structured data and sitemaps. Every field has a working default — you only need to change what you want to differ from what the site already produces.', 'fw' ); ?>
 			</p>
+			<?php
+		endif;
 
-			<?php if ( isset( $_GET['fw-saved'] ) ) : ?>
-				<div class="notice notice-success is-dismissible">
-					<p><?php esc_html_e( 'Settings saved.', 'fw' ); ?></p>
-				</div>
-			<?php endif; ?>
-
-			<h2 class="nav-tab-wrapper fw-seo-tabs" style="margin:.4em 0 1.4em">
-				<?php foreach ( $tabs as $tab_id => $tab ) : ?>
-					<a href="#<?php echo esc_attr( $tab_id ); ?>"
-					   class="nav-tab<?php echo $first ? ' nav-tab-active' : ''; ?>"
-					   data-tab="<?php echo esc_attr( $tab_id ); ?>"><?php echo esc_html( $tab['title'] ?? $tab_id ); ?></a>
-					<?php $first = false; ?>
-				<?php endforeach; ?>
-				<a href="#import_tab" class="nav-tab" data-tab="import_tab"><?php esc_html_e( 'Import/Export', 'fw' ); ?></a>
-			</h2>
-
-			<form method="post" action="" id="fw-seo-settings-form">
+		if ( 'import_tab' === $view ) {
+			// Not a form of settings: its own buttons act immediately, and a
+			// "Save Changes" here would be answering a question nobody asked.
+			echo $this->import_panel(); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in the panel.
+		} else {
+			?>
+			<form method="post" action="<?php echo esc_url( self::url( $view ) ); ?>" id="fw-seo-settings-form">
 				<?php wp_nonce_field( self::NONCE ); ?>
-				<?php $first = true; foreach ( $tabs as $tab_id => $tab ) : ?>
-					<div class="fw-seo-panel<?php echo $first ? ' is-active' : ''; ?>" id="panel-<?php echo esc_attr( $tab_id ); ?>">
-						<?php
-						// phpcs:ignore WordPress.Security.EscapeOutput -- the options renderer escapes.
-						echo fw()->backend->render_options( (array) ( $tab['options'] ?? [] ), $values );
-						?>
-					</div>
-					<?php $first = false; ?>
-				<?php endforeach; ?>
-
-				<p class="submit">
+				<?php
+				// phpcs:ignore WordPress.Security.EscapeOutput -- the options renderer escapes.
+				echo fw()->backend->render_options( (array) ( $tabs[ $view ]['options'] ?? [] ), $values );
+				?>
+				<p class="submit fw-seo-submit">
 					<button type="submit" class="button button-primary"><?php esc_html_e( 'Save Changes', 'fw' ); ?></button>
 				</p>
 			</form>
-
-			<div class="fw-seo-panel" id="panel-import_tab">
-				<?php echo $this->import_panel(); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in the panel. ?>
-			</div>
-		</div>
-
-		<style>
-		.fw-ext-seo-settings .fw-seo-tabs{margin-top:.4em;border-bottom:1px solid #c3c4c7}
-		.fw-ext-seo-settings .fw-seo-tabs .nav-tab{border-radius:.25rem .25rem 0 0}
-		.fw-ext-seo-settings .fw-seo-panel{display:none}
-		.fw-ext-seo-settings .fw-seo-panel.is-active{display:block}
-
-		/* Location headings on Titles & Meta.
-		   They are html-full options, so the skin renders each one like an input
-		   row: a grey input column and field-sized padding around an 18px
-		   heading, which reads as a filled bar rather than a label. Undo the row
-		   chrome and let the heading be a quiet section rule instead. */
-		body .fw-ext-seo-settings .fw-backend-option-type-html-full{margin:0;padding:0;border:0}
-		/* `body` to match the Admin Skin, which styles every html-full option as a
-		   callout panel — with !important, so matching it needs one too. That
-		   styling is right for a callout and wrong for a heading. */
-		body .fw-ext-seo-settings .fw-backend-option-type-html-full .fw-inner{background:transparent!important;border-color:transparent!important}
-		.fw-ext-seo-settings .fw-seo-settings-heading{
-			margin:0;padding:1.6em 20px .7em;
-			border-top:1px solid #e6e6ea;
-			font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
-			color:#646970;
+			<?php
 		}
-		/* The first one sits directly under the box title; a rule there would
-		   double up with the box's own border. */
-		.fw-ext-seo-settings .fw-backend-option-type-html-full:first-child .fw-seo-settings-heading{
-			border-top:0;padding-top:1em;
-		}
-		.fw-ext-seo-settings .fw-seo-import-bar{height:6px;border-radius:3px;background:#dcdcde;overflow:hidden}
-		.fw-ext-seo-settings .fw-seo-import-bar span{display:block;height:100%;width:0;background:var(--fw-accent, #3858e9);transition:width .2s ease}
-		</style>
-		<script>
-		( function () {
-			var wrap = document.querySelector( '.fw-ext-seo-settings' );
 
-			if ( ! wrap ) { return; }
-
-			function each( list, fn ) { Array.prototype.forEach.call( list, fn ); }
-
-			function activate( tab ) {
-				each( wrap.querySelectorAll( '.fw-seo-tabs .nav-tab' ), function ( a ) {
-					a.classList.toggle( 'nav-tab-active', a.getAttribute( 'data-tab' ) === tab );
-				} );
-				each( wrap.querySelectorAll( '.fw-seo-panel' ), function ( p ) {
-					p.classList.toggle( 'is-active', p.id === 'panel-' + tab );
-				} );
-
-				// Hide the whole settings form on Import/Export.
-				//
-				// Its panels hide with everything else, but "Save Changes" lives
-				// on the FORM, not in a panel — so it used to sit at the top of a
-				// tab with nothing to save. That tab has its own buttons; a
-				// Save Changes there is answering a question nobody asked, and
-				// disabling it would only raise the same question more quietly.
-				var form = document.getElementById( 'fw-seo-settings-form' );
-
-				if ( form ) {
-					form.style.display = ( 'import_tab' === tab ) ? 'none' : '';
-				}
-			}
-
-			each( wrap.querySelectorAll( '.fw-seo-tabs .nav-tab' ), function ( a ) {
-				a.addEventListener( 'click', function ( e ) {
-					e.preventDefault();
-
-					var tab = a.getAttribute( 'data-tab' );
-
-					activate( tab );
-
-					// Deep-linkable, so "check the Sitemap tab" can be a URL.
-					if ( window.history && window.history.replaceState ) {
-						window.history.replaceState( null, '', '#' + tab );
-					}
-				} );
-			} );
-
-			var hash = ( window.location.hash || '' ).replace( /^#/, '' );
-
-			if ( hash && wrap.querySelector( '#panel-' + hash ) ) {
-				activate( hash );
-			} else if ( /[?&]fw-seo-csv=/.test( window.location.search ) ) {
-				// Arriving back from a CSV upload or apply. Without this the
-				// redirect lands on the first tab and the preview — the whole
-				// reason for the round trip — is sitting on a tab nobody opened.
-				activate( 'import_tab' );
-			}
-		}() );
-		</script>
-		<?php
+		FW_SEO_App::app()->close();
 	}
 
 	/**

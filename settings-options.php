@@ -78,6 +78,17 @@ $fw_seo_location_group = static function ( array $location ) {
  *
  * @return array|null
  */
+/**
+ * Whether a report belonging to a tab is worth generating for this request.
+ *
+ * The reports below are queries, not settings, and only one tab is on screen at
+ * a time. Outside the settings page — or before its class is loaded — the whole
+ * tree is built, exactly as it always was.
+ */
+$fw_seo_wants = static function ( $tab ) {
+	return ! class_exists( 'FW_SEO_Settings_Page' ) || FW_SEO_Settings_Page::wants( $tab );
+};
+
 $fw_seo_box = static function ( $group_key, $title, $description, array $locations, callable $builder ) {
 	$inner = [];
 
@@ -374,7 +385,7 @@ foreach ( FW_SEO_Locations::post_types() as $post_type => $object ) {
 }
 
 $options['search_tab'] = [
-	'title'   => __( 'Reports', 'fw' ),
+	'title'   => __( 'Site search', 'fw' ),
 	'type'    => 'tab',
 	'options' => [
 		'search_box' => [
@@ -407,12 +418,19 @@ $options['search_tab'] = [
 							'type'  => 'html-full',
 							'label' => false,
 							// Generated at render time: a report is a query, not a setting.
-							'html'  => FW_SEO_Search_Log::report_html(),
+							'html'  => $fw_seo_wants( 'search_tab' ) ? FW_SEO_Search_Log::report_html() : '',
 						],
 					],
 				],
 			],
 		],
+	],
+];
+
+$options['freshness_tab'] = [
+	'title'   => __( 'Going stale', 'fw' ),
+	'type'    => 'tab',
+	'options' => [
 		'freshness_box' => [
 			'title'   => __( 'Pages going stale', 'fw' ),
 			'type'    => 'box',
@@ -449,12 +467,19 @@ $options['search_tab'] = [
 						'freshness_report' => [
 							'type'  => 'html-full',
 							'label' => false,
-							'html'  => FW_SEO_Freshness::report_html(),
+							'html'  => $fw_seo_wants( 'freshness_tab' ) ? FW_SEO_Freshness::report_html() : '',
 						],
 					],
 				],
 			],
 		],
+	],
+];
+
+$options['vitals_tab'] = [
+	'title'   => __( 'Page speed', 'fw' ),
+	'type'    => 'tab',
+	'options' => [
 		'vitals_box' => [
 			'title'   => __( 'How fast pages really are', 'fw' ),
 			'type'    => 'box',
@@ -472,7 +497,42 @@ $options['search_tab'] = [
 						'vitals_report' => [
 							'type'  => 'html-full',
 							'label' => false,
-							'html'  => FW_SEO_Vitals::report_html(),
+							'html'  => $fw_seo_wants( 'vitals_tab' ) ? FW_SEO_Vitals::report_html() : '',
+						],
+					],
+				],
+			],
+		],
+	],
+];
+
+$options['console_tab'] = [
+	'title'   => __( 'Search Console', 'fw' ),
+	'type'    => 'tab',
+	'options' => [
+		'console_box' => [
+			'title'   => __( 'Search Console', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'Your own data from Google, shown where you can act on it. Read-only, and the site talks to Google directly — there is no account here and nothing passes through us.', 'fw' ),
+			'options' => [
+				'console_group' => [
+					'type'    => 'group',
+					'options' => [
+						'console_client_id'     => [
+							'label' => __( 'OAuth client ID', 'fw' ),
+							'desc'  => __( 'From a Google Cloud project you create: enable the Search Console API, then make an OAuth client of type "Web application".', 'fw' ),
+							'type'  => 'text',
+							'value' => '',
+						],
+						'console_client_secret' => [
+							'label' => __( 'OAuth client secret', 'fw' ),
+							'type'  => 'password',
+							'value' => '',
+						],
+						'console_report'        => [
+							'type'  => 'html-full',
+							'label' => false,
+							'html'  => $fw_seo_wants( 'console_tab' ) ? FW_SEO_Console::report_html() : '',
 						],
 					],
 				],

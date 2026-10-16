@@ -108,7 +108,7 @@ class FW_SEO_Conflict {
 					printf(
 						wp_kses( __( 'Move here — the extension can <a href="%2$s">import your titles and descriptions from %1$s</a> first, then deactivate it.', 'fw' ), [ 'a' => [ 'href' => [] ] ] ),
 						esc_html( $plugin ),
-						esc_url( $settings . '#import_tab' )
+						esc_url( FW_SEO_Settings_Page::url( 'import_tab' ) )
 					);
 				?></li>
 			</ul>

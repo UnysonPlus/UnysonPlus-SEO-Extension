@@ -443,7 +443,7 @@ class FW_SEO_Card {
 
 		self::clear();
 
-		wp_safe_redirect( add_query_arg( 'fw-seo-cards', 'cleared', admin_url( 'admin.php?page=fw-seo-settings' ) ) );
+		wp_safe_redirect( add_query_arg( 'fw-seo-cards', 'cleared', FW_SEO_Settings_Page::url( 'social_tab' ) ) );
 		exit;
 	}
 }
