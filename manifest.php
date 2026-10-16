@@ -11,7 +11,7 @@ $manifest['description'] = __(
 	'fw'
 );
 
-$manifest['version']    = '2.0.20';
+$manifest['version']    = '2.0.24';
 $manifest['display']    = true;
 $manifest['standalone'] = true;
 
@@ -33,6 +33,122 @@ $manifest['requires_wp']  = '5.8';
 /**
  * Changelog
  * -----------------------------------------------------------------------------
+ * 2.0.24 - Core Web Vitals from real visits, and the tab becomes Reports.
+ *
+ *          The Asset Optimizer already optimises for these metrics — it
+ *          preloads the likely LCP image and hoists blocks against a measured
+ *          layout shift — but has no way of knowing whether any of it worked.
+ *          It optimises blind. Google's Chrome UX Report answers that for
+ *          free, for the site's own pages, from 28 days of real visits.
+ *
+ *          Field data, not a lab score: it says whether the site is fast for
+ *          the people using it, rather than on one simulated connection. The
+ *          75th percentile is shown because that is the number Google judges
+ *          on — an average is flattered by a handful of fast visits.
+ *
+ *          The important case is the ordinary one: a page or site without
+ *          enough traffic is simply NOT IN CrUX, and Google answers 404.
+ *          That is not an error and must never render as a zero, because a
+ *          zero reads as a result. It is reported as "not enough traffic", said
+ *          not to be a fault, and cached anyway so a small site does not
+ *          re-ask every page load for an answer that will not change today. A
+ *          rejected key is reported differently again — the two are easy to
+ *          confuse and lead somewhere different.
+ *
+ *          Nothing is fetched while rendering the settings page: readings come
+ *          from a twelve-hour cache, and checking is a button. A remote call
+ *          on page load is a slow settings screen on somebody else's bad day.
+ *
+ *          The Content tab becomes "Reports" and now carries three: what
+ *          visitors could not find, what has not been touched, and how fast
+ *          pages really are.
+ *
+ * 2.0.23 - Content report: pages going stale, beside the site-search gaps.
+ *
+ *          The most useful editorial work on an established site is rarely
+ *          writing new pages; it is finding the ones that quietly stopped
+ *          being true. Paid platforms sell this as content-decay reporting
+ *          built on traffic history. Age and length are what can be known
+ *          WITHOUT that history, and they answer "what should I look at this
+ *          month" well enough to be worth having — the report says so in as
+ *          many words, because a page can be four years old and perfectly
+ *          correct.
+ *
+ *          Word count comes from FW_SEO_Content, so a builder page is measured
+ *          by the prose in its TREE. Counting post_content would measure
+ *          rendered markup and every builder page would read as thin, which
+ *          would make the whole report noise. Counted by splitting on
+ *          whitespace rather than str_word_count, which is ASCII-minded and
+ *          undercounts accented or non-Latin prose badly.
+ *
+ *          The "Site search" tab becomes "Content" and carries both reports:
+ *          what visitors could not find, and what has not been touched. Two
+ *          questions about the same thing, and one tab rather than two.
+ *
+ *          Staleness is counted site-wide (a date query, cheap); thinness is
+ *          NOT, because it would mean parsing every post's prose. A number we
+ *          cannot afford to compute honestly is worse than no number.
+ *
+ * 2.0.22 - Share images drawn for pages that have none.
+ *
+ *          The image ladder ended at a site-wide default, so every text page
+ *          without a picture shared one image and every link to the site
+ *          looked identical in a feed. A card is now drawn from the page title
+ *          at the rung BETWEEN "nothing on the page" and "the site default" —
+ *          so a page that has a picture, or a chosen image, is never
+ *          overridden. Tests pin exactly that.
+ *
+ *          No font is bundled. Nothing in the plugin or theme ships a text
+ *          face, and carrying one means carrying a licence and 300KB for a
+ *          feature many sites will not use. The font is FOUND instead: a file
+ *          chosen in the settings, then a theme's own, then the usual system
+ *          paths (DejaVu and Liberation on Linux, Arial on Windows). With none
+ *          found, nothing is drawn and the ladder simply falls through — the
+ *          feature declines rather than drawing something unreadable.
+ *
+ *          Type is sized by MEASURING the glyphs: the largest size whose
+ *          wrapped title actually fits the available height wins. An earlier
+ *          version bumped short titles to a bigger size while keeping the
+ *          smaller size's line cap, which truncated titles that had room to
+ *          spare.
+ *
+ *          Cards are cached by a signature over the title, colours, font and
+ *          render version, so a retitled or recoloured page gets a new file
+ *          rather than a stale one, and `save_post` sweeps the old ones.
+ *
+ *          `fw_seo_card_font` filters the RESULT of the font search, so it can
+ *          supply a font, replace the one found, or return '' to switch
+ *          drawing off entirely.
+ *
+ * 2.0.21 - Site-search gap report: what visitors look for and do not find.
+ *
+ *          WordPress discards what people type into a site's own search box.
+ *          That is the only keyword data about a site's ACTUAL audience that
+ *          costs nothing and is not an estimate — and a search returning no
+ *          results is a visitor saying, in their own words, that a page is
+ *          missing. Paid keyword tools approximate this from outside with
+ *          licensed clickstream data; the site has the real thing.
+ *
+ *          Aggregated by phrase in its own table, one row per phrase with a
+ *          counter, not one row per search: "forty people searched for this
+ *          and found nothing" is the finding, not the forty timestamps.
+ *          Phrases are normalised (case, whitespace, tags) so three spellings
+ *          are one row, and recorded on `wp` rather than `pre_get_posts`
+ *          because by then the result count is known — and the count is the
+ *          whole point.
+ *
+ *          Reported in two lists: found nothing, and found only one or two
+ *          (often a page exists but does not use the words people search
+ *          with). Each gap offers a pre-titled new page.
+ *
+ *          Two things it deliberately does NOT do. It does not record
+ *          crawlers — search endpoints are hammered, and a log full of bot
+ *          queries answers nothing — and it does not keep phrases for ever:
+ *          retention defaults to 90 days, because search text is typed by
+ *          visitors who paste things they did not mean to, and a phrase last
+ *          seen two years ago is not a content gap any more. Nothing is ever
+ *          sent off the site.
+ *
  * 2.0.17 - Bulk edit in a spreadsheet: CSV export and import.
  *
  *          A different job from the plugin importer beside it. That one reads

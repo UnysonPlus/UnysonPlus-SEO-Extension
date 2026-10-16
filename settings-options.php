@@ -296,6 +296,39 @@ $options['social_tab'] = [
 								'summary'             => __( 'Small thumbnail', 'fw' ),
 							],
 						],
+						'social_card_enabled'  => [
+							'label' => __( 'Draw a card when a page has no image', 'fw' ),
+							'desc'  => __( 'Pages with no featured image and no picture of their own get one drawn from their title, instead of all sharing the default above. A page that already has an image is never changed.', 'fw' ),
+							'type'  => 'switch',
+							'value' => true,
+						],
+						'social_card_bg'       => [
+							'label' => __( 'Card background', 'fw' ),
+							'type'  => 'color-picker',
+							'value' => '#111827',
+						],
+						'social_card_fg'       => [
+							'label' => __( 'Card text', 'fw' ),
+							'type'  => 'color-picker',
+							'value' => '#ffffff',
+						],
+						'social_card_accent'   => [
+							'label' => __( 'Card accent', 'fw' ),
+							'desc'  => __( 'The edge bar and the site name.', 'fw' ),
+							'type'  => 'color-picker',
+							'value' => '#2271b1',
+						],
+						'social_card_sitename' => [
+							'label' => __( 'Show the site name on the card', 'fw' ),
+							'type'  => 'switch',
+							'value' => true,
+						],
+						'social_card_font'     => [
+							'label' => __( 'Card font', 'fw' ),
+							'desc'  => __( 'Optional. A .ttf file to draw the title with. Left empty, the theme\'s own font is used if it has one, otherwise a system font. If none is found, cards are not drawn.', 'fw' ),
+							'type'  => 'upload',
+							'value' => '',
+						],
 						'twitter_site'         => [
 							'label' => __( 'Site X / Twitter account', 'fw' ),
 							'desc'  => __( 'The account this site belongs to. Paste the handle or the profile URL — either works.', 'fw' ),
@@ -339,6 +372,114 @@ foreach ( FW_SEO_Locations::post_types() as $post_type => $object ) {
 		'choices' => FW_SEO_Schema::type_choices(),
 	];
 }
+
+$options['search_tab'] = [
+	'title'   => __( 'Reports', 'fw' ),
+	'type'    => 'tab',
+	'options' => [
+		'search_box' => [
+			'title'   => __( 'What visitors search for', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'WordPress records nothing about your own search box. A search that comes back empty is a visitor telling you, in their words, that a page is missing — the only keyword data about your actual audience that costs nothing and is not an estimate.', 'fw' ),
+			'options' => [
+				'search_group' => [
+					'type'    => 'group',
+					'options' => [
+						'search_log_enabled' => [
+							'label' => __( 'Record searches', 'fw' ),
+							'desc'  => __( 'Counts each phrase and whether it found anything. Stored on this site only and never sent anywhere.', 'fw' ),
+							'type'  => 'switch',
+							'value' => true,
+						],
+						'search_log_days'    => [
+							'label'   => __( 'Keep for', 'fw' ),
+							'desc'    => __( 'Phrases nobody has searched for in this long are deleted. Search text is typed by visitors and can contain anything, so keeping it for ever is a liability with no analytical value.', 'fw' ),
+							'type'    => 'select',
+							'value'   => '90',
+							'choices' => [
+								'30'  => __( '30 days', 'fw' ),
+								'90'  => __( '90 days', 'fw' ),
+								'180' => __( '180 days', 'fw' ),
+								'365' => __( 'A year', 'fw' ),
+							],
+						],
+						'search_report'      => [
+							'type'  => 'html-full',
+							'label' => false,
+							// Generated at render time: a report is a query, not a setting.
+							'html'  => FW_SEO_Search_Log::report_html(),
+						],
+					],
+				],
+			],
+		],
+		'freshness_box' => [
+			'title'   => __( 'Pages going stale', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'The most useful editorial work on an established site is rarely writing new pages; it is finding the ones that quietly stopped being true. Age and length are what can be known without traffic history — they say what to look at, not what is wrong.', 'fw' ),
+			'options' => [
+				'freshness_group' => [
+					'type'    => 'group',
+					'options' => [
+						'freshness_months' => [
+							'label'   => __( 'Call a page stale after', 'fw' ),
+							'type'    => 'select',
+							'value'   => '18',
+							'choices' => [
+								'6'  => __( '6 months', 'fw' ),
+								'12' => __( '12 months', 'fw' ),
+								'18' => __( '18 months', 'fw' ),
+								'24' => __( '2 years', 'fw' ),
+								'36' => __( '3 years', 'fw' ),
+							],
+						],
+						'freshness_thin'   => [
+							'label'   => __( 'Call a page thin under', 'fw' ),
+							'desc'    => __( 'Counted from the words a reader actually sees — on a builder page, the prose in the elements rather than the markup around them.', 'fw' ),
+							'type'    => 'select',
+							'value'   => '150',
+							'choices' => [
+								'0'   => __( 'Never flag thin pages', 'fw' ),
+								'100' => __( '100 words', 'fw' ),
+								'150' => __( '150 words', 'fw' ),
+								'300' => __( '300 words', 'fw' ),
+								'600' => __( '600 words', 'fw' ),
+							],
+						],
+						'freshness_report' => [
+							'type'  => 'html-full',
+							'label' => false,
+							'html'  => FW_SEO_Freshness::report_html(),
+						],
+					],
+				],
+			],
+		],
+		'vitals_box' => [
+			'title'   => __( 'How fast pages really are', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'Real visits over the last 28 days, from Google\'s Chrome UX Report. Field data rather than a lab score: it answers whether the site is fast for the people using it, not whether it is fast on one simulated connection.', 'fw' ),
+			'options' => [
+				'vitals_group' => [
+					'type'    => 'group',
+					'options' => [
+						'crux_api_key'  => [
+							'label' => __( 'Chrome UX Report API key', 'fw' ),
+							'desc'  => __( 'Free from Google Cloud: enable the Chrome UX Report API and create an API key. The data itself costs nothing, and only your own site is ever queried.', 'fw' ),
+							'type'  => 'text',
+							'value' => '',
+						],
+						'vitals_report' => [
+							'type'  => 'html-full',
+							'label' => false,
+							'html'  => FW_SEO_Vitals::report_html(),
+						],
+					],
+				],
+			],
+		],
+	],
+];
 
 $options['schema_tab'] = [
 	'title'   => __( 'Structured data', 'fw' ),

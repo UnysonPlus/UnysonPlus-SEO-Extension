@@ -53,6 +53,10 @@ class FW_Extension_SEO extends FW_Extension {
 		require_once $includes . 'class-fw-seo-import.php';
 		require_once $includes . 'class-fw-seo-conflict.php';
 		require_once $includes . 'class-fw-seo-csv.php';
+		require_once $includes . 'class-fw-seo-search-log.php';
+		require_once $includes . 'class-fw-seo-card.php';
+		require_once $includes . 'class-fw-seo-freshness.php';
+		require_once $includes . 'class-fw-seo-vitals.php';
 		require_once $includes . 'class-fw-seo-store.php';
 		require_once $includes . 'class-fw-seo-locations.php';
 		require_once $includes . 'class-fw-seo-settings.php';
@@ -65,6 +69,11 @@ class FW_Extension_SEO extends FW_Extension {
 		// The sitemap wires itself on both sides: the rewrite rules must exist
 		// for the admin's permalink flush, not only for the front end.
 		FW_SEO_Sitemap::init();
+
+		// Both sides: the front end records searches, the admin reports them.
+		FW_SEO_Search_Log::init();
+		FW_SEO_Card::init();
+		FW_SEO_Vitals::init();
 	}
 
 	/**

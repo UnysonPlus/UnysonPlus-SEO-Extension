@@ -190,11 +190,27 @@ ts(
 
 FW_SEO_Chain::flush();
 FW_SEO_Image::flush();
+// Card drawing is switched off for this assertion so it still tests the LADDER
+// rather than what now fills the gap at the end of it. The card is asserted
+// separately, below.
+add_filter( 'fw_seo_card_font', '__return_empty_string', 99 );
+FW_SEO_Chain::flush();
+FW_SEO_Image::flush();
 
 ts(
-	'a page with no image at all resolves to nothing rather than a broken URL',
+	'a page with no image of its own finds nothing on the page itself',
 	FW_SEO_Chain::resolve( 'og_image', $pctx ),
 	''
+);
+
+remove_filter( 'fw_seo_card_font', '__return_empty_string', 99 );
+FW_SEO_Chain::flush();
+FW_SEO_Image::flush();
+
+ts(
+	'...and a card is drawn to fill that gap',
+	false !== strpos( FW_SEO_Chain::resolve( 'og_image', $pctx ), '/social-cards/card-' ),
+	true
 );
 
 // -----------------------------------------------------------------------------
@@ -340,10 +356,25 @@ $only_logo_id = wp_insert_post( [
 FW_SEO_Chain::flush();
 FW_SEO_Image::flush();
 
+// Again with drawing off, so this tests the SIZE RULE rather than the card.
+add_filter( 'fw_seo_card_font', '__return_empty_string', 99 );
+FW_SEO_Chain::flush();
+FW_SEO_Image::flush();
+
 ts(
 	'an image we measured and know is too small is never used',
 	FW_SEO_Chain::resolve( 'og_image', FW_SEO_Context::for_post( $only_logo_id ) ),
 	''
+);
+
+remove_filter( 'fw_seo_card_font', '__return_empty_string', 99 );
+FW_SEO_Chain::flush();
+FW_SEO_Image::flush();
+
+ts(
+	'...and the drawn card, not the too-small logo, fills the gap',
+	false !== strpos( FW_SEO_Chain::resolve( 'og_image', FW_SEO_Context::for_post( $only_logo_id ) ), '/social-cards/card-' ),
+	true
 );
 
 // A featured image is an explicit decision and is not second-guessed.

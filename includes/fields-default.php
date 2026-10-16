@@ -116,7 +116,17 @@ FW_SEO_Chain::register_field( 'og_image', [
 		return (string) FW_SEO_Store::get( $ctx, 'og_image' );
 	},
 	'auto'     => function ( FW_SEO_Context $ctx ) {
-		return FW_SEO_Image::find( $ctx );
+		$found = FW_SEO_Image::find( $ctx );
+
+		if ( '' !== $found ) {
+			return $found;
+		}
+
+		// Nothing on the page itself. Draw one from the title before falling
+		// back to the site-wide default — otherwise every text page shares the
+		// same picture and every link to the site looks identical in a feed.
+		// A page that HAS an image never reaches here, so nothing is overridden.
+		return FW_SEO_Card::url( $ctx );
 	},
 	'fallback' => function () {
 		// The picker stores an array; every reader downstream wants a URL.
