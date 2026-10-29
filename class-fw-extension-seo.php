@@ -58,6 +58,7 @@ class FW_Extension_SEO extends FW_Extension {
 		require_once $includes . 'class-fw-seo-freshness.php';
 		require_once $includes . 'class-fw-seo-vitals.php';
 		require_once $includes . 'class-fw-seo-console.php';
+		require_once $includes . 'class-fw-seo-inspect.php';
 		require_once $includes . 'class-fw-seo-store.php';
 		require_once $includes . 'class-fw-seo-locations.php';
 		require_once $includes . 'class-fw-seo-settings.php';
@@ -76,6 +77,7 @@ class FW_Extension_SEO extends FW_Extension {
 		FW_SEO_Card::init();
 		FW_SEO_Vitals::init();
 		FW_SEO_Console::init();
+		FW_SEO_Inspect::init();
 	}
 
 	/**

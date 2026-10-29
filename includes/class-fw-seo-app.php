@@ -88,6 +88,7 @@ class FW_SEO_App {
 				'label' => __( 'Reports', 'fw' ),
 				'items' => array(
 					'console_tab'   => array( 'label' => __( 'Search Console', 'fw' ), 'icon' => 'dashicons-chart-line' ),
+					'coverage_tab'  => array( 'label' => __( 'Index coverage', 'fw' ), 'icon' => 'dashicons-visibility' ),
 					'search_tab'    => array( 'label' => __( 'Site search', 'fw' ), 'icon' => 'dashicons-search' ),
 					'freshness_tab' => array( 'label' => __( 'Going stale', 'fw' ), 'icon' => 'dashicons-backup' ),
 					'vitals_tab'    => array( 'label' => __( 'Page speed', 'fw' ), 'icon' => 'dashicons-performance' ),

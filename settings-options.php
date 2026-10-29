@@ -541,6 +541,30 @@ $options['console_tab'] = [
 	],
 ];
 
+$options['coverage_tab'] = [
+	'title'   => __( 'Index coverage', 'fw' ),
+	'type'    => 'tab',
+	'options' => [
+		'coverage_box' => [
+			'title'   => __( 'Is Google indexing your pages?', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'A page Google never kept cannot bring anyone to the site, and nothing else in WordPress tells the difference between "nobody searches for this" and "it was never in the index". Checked in the background, a few pages at a time, because Google allows a fixed number of these a day.', 'fw' ),
+			'options' => [
+				'coverage_group' => [
+					'type'    => 'group',
+					'options' => [
+						'coverage_report' => [
+							'type'  => 'html-full',
+							'label' => false,
+							'html'  => $fw_seo_wants( 'coverage_tab' ) ? FW_SEO_Inspect::report_html() : '',
+						],
+					],
+				],
+			],
+		],
+	],
+];
+
 $options['schema_tab'] = [
 	'title'   => __( 'Structured data', 'fw' ),
 	'type'    => 'tab',

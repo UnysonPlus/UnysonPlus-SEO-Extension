@@ -107,13 +107,18 @@ class FW_SEO_Settings_Page {
 			return;
 		}
 
-		$this->hook_suffix = add_submenu_page(
-			self::PARENT_SLUG,
-			__( 'SEO Settings', 'fw' ),
+		// SEO is promoted to the TOP LEVEL (beside the other apps) rather than living in
+		// the Unyson+ (developer / site-config) menu - it is a surface site owners visit
+		// often, the way Yoast / RankMath sit at the top level. Previously a Unyson+
+		// submenu.
+		$this->hook_suffix = add_menu_page(
+			__( 'SEO', 'fw' ),
 			__( 'SEO', 'fw' ),
 			self::CAPABILITY,
 			self::PAGE_SLUG,
-			[ $this, 'render' ]
+			[ $this, 'render' ],
+			'dashicons-search',
+			30
 		);
 
 		if ( ! $this->hook_suffix ) {

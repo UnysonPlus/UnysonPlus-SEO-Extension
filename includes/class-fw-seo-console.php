@@ -277,6 +277,7 @@ class FW_SEO_Console {
 	 * @return array{ok:bool,reason:string,data:array}
 	 */
 	public static function request( $path, ?array $body = null ) {
+		// $path may be a path under API_BASE, or a full https:// URL.
 		$token = self::access_token();
 
 		if ( '' === $token ) {
@@ -291,11 +292,17 @@ class FW_SEO_Console {
 			],
 		];
 
+		// An absolute URL passes through untouched: URL Inspection lives on a
+		// different host from the rest of the API, and splitting the token
+		// handling across two request helpers is how one of them ends up not
+		// refreshing.
+		$url = ( 0 === strpos( $path, 'https://' ) ) ? $path : self::API_BASE . $path;
+
 		if ( null === $body ) {
-			$response = wp_remote_get( self::API_BASE . $path, $args );
+			$response = wp_remote_get( $url, $args );
 		} else {
 			$args['body'] = wp_json_encode( $body );
-			$response     = wp_remote_post( self::API_BASE . $path, $args );
+			$response     = wp_remote_post( $url, $args );
 		}
 
 		if ( is_wp_error( $response ) ) {

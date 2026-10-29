@@ -463,7 +463,27 @@ class FW_SEO_Tags {
 			return false;
 		}
 
-		return '' === trim( $trimmed, self::SEPARATOR_CHARS );
+		return '' === preg_replace( '/[' . self::separator_class() . ']+/u', '', $trimmed );
+	}
+
+	/**
+	 * SEPARATOR_CHARS as a regex character class, matched as whole UTF-8 characters.
+	 *
+	 * Not trim(): trim() works on bytes, and several separators (· » «) are two-byte UTF-8 sequences
+	 * starting with \xC2 — the same lead byte as £ (\xC2\xA3). trim() stripped that byte from a title
+	 * beginning with "£10", leaving an invalid lone \xA3 in the <title>.
+	 *
+	 * @return string
+	 */
+	protected static function separator_class() {
+		static $class = null;
+
+		if ( null === $class ) {
+			$chars = preg_split( '//u', self::SEPARATOR_CHARS, -1, PREG_SPLIT_NO_EMPTY );
+			$class = implode( '', array_map( function ( $c ) { return preg_quote( $c, '/' ); }, $chars ) );
+		}
+
+		return $class;
 	}
 
 	/**
@@ -477,7 +497,9 @@ class FW_SEO_Tags {
 	protected static function tidy( $value ) {
 		$value = preg_replace( '/\s+/u', ' ', (string) $value );
 
-		return trim( (string) $value, " \t\n\r\0\x0B" . self::SEPARATOR_CHARS );
+		$class = '\s\x00' . self::separator_class();
+
+		return (string) preg_replace( '/^[' . $class . ']+|[' . $class . ']+$/u', '', (string) $value );
 	}
 
 	/**
