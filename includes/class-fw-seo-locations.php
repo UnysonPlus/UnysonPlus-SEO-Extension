@@ -163,6 +163,38 @@ class FW_SEO_Locations {
 		return isset( self::taxonomies()[ $taxonomy ] );
 	}
 
+	/** @var bool|null */
+	protected static $single_author = null;
+
+	/**
+	 * Whether a group is kept out of search results when nobody has set it.
+	 *
+	 * Date archives are thin, near-duplicate listings on almost every site. Author
+	 * archives are too on a site one person writes, where the author archive is
+	 * the blog again; a site with several authors keeps them indexable, since
+	 * there they are genuinely different listings. A saved setting always wins.
+	 *
+	 * @param string $location_key
+	 *
+	 * @return bool
+	 */
+	public static function default_noindex( $location_key ) {
+		if ( 'date' === $location_key ) {
+			return true;
+		}
+
+		if ( 'author' === $location_key ) {
+			if ( null === self::$single_author ) {
+				global $wpdb;
+				self::$single_author = (int) $wpdb->get_var( "SELECT COUNT(DISTINCT post_author) FROM {$wpdb->posts} WHERE post_type = 'post' AND post_status = 'publish'" ) < 2; // phpcs:ignore WordPress.DB
+			}
+
+			return self::$single_author;
+		}
+
+		return false;
+	}
+
 	/**
 	 * A location key as a settings-safe id fragment: `post:page` -> `post_page`.
 	 *

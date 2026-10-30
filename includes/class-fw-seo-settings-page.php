@@ -40,6 +40,7 @@ class FW_SEO_Settings_Page {
 		$this->extension = $extension;
 
 		add_action( 'admin_menu', [ $this, '_action_admin_menu' ], 20 );
+		add_action( 'admin_post_fw_seo_settings_reset', [ $this, '_action_reset' ] );
 
 		// Point the Extensions-manager card at this page too, so there is one
 		// settings screen rather than two that can disagree.
@@ -219,6 +220,90 @@ class FW_SEO_Settings_Page {
 	}
 
 	/**
+	 * The setting ids one screen owns: what it saves, and so what resetting it
+	 * clears. Display-only blocks (reports, previews) hold no value.
+	 *
+	 * @param array $tab_options
+	 *
+	 * @return string[]
+	 */
+	public static function keys_of( array $tab_options ) {
+		$keys = [];
+
+		foreach ( fw_extract_only_options( $tab_options ) as $id => $option ) {
+			if ( ! in_array( $option['type'] ?? '', [ 'html', 'html-full', 'html-fixed' ], true ) ) {
+				$keys[] = (string) $id;
+			}
+		}
+
+		return $keys;
+	}
+
+	/**
+	 * Reset one screen to its defaults: its stored values are removed, so the
+	 * defaults show again. Every other screen is left exactly as it was.
+	 *
+	 * @internal
+	 */
+	public function _action_reset() {
+		if ( ! current_user_can( self::CAPABILITY ) ) {
+			wp_die( esc_html__( 'You are not allowed to do this.', 'fw' ), 403 );
+		}
+
+		check_admin_referer( 'fw_seo_settings_reset' );
+
+		$view = isset( $_GET['view'] ) ? sanitize_key( wp_unslash( $_GET['view'] ) ) : '';
+		$tabs = $this->tabs();
+
+		if ( ! isset( $tabs[ $view ] ) ) {
+			wp_safe_redirect( self::url() );
+			exit;
+		}
+
+		$before = (array) fw_get_db_ext_settings_option( 'seo' );
+		$after  = array_diff_key( $before, array_flip( self::keys_of( (array) ( $tabs[ $view ]['options'] ?? [] ) ) ) );
+
+		fw_set_db_ext_settings_option( 'seo', null, $after );
+		FW_SEO_Settings::flush();
+		do_action( 'fw_extension_settings_form_saved:seo', $before );
+
+		wp_safe_redirect( add_query_arg( 'fw-reset', '1', self::url( $view ) ) );
+		exit;
+	}
+
+	/**
+	 * Boxes do not print their own `desc`, so the explanation each box carries
+	 * would never be seen. Put it at the top of the box as a paragraph instead.
+	 * Only for drawing: the saved values are unaffected (html-full holds none).
+	 *
+	 * @param array $options
+	 *
+	 * @return array
+	 */
+	public static function with_box_intros( array $options ) {
+		foreach ( $options as $id => $option ) {
+			if ( ! is_array( $option ) ) {
+				continue;
+			}
+			if ( 'box' === ( $option['type'] ?? '' ) && '' !== trim( (string) ( $option['desc'] ?? '' ) ) ) {
+				$intro = [ $id . '__intro' => [
+					'type'  => 'html-full',
+					'label' => false,
+					'html'  => '<p class="fw-seo-box-intro">' . wp_kses( (string) $option['desc'], [ 'a' => [ 'href' => [], 'target' => [], 'rel' => [] ], 'code' => [], 'strong' => [], 'em' => [] ] ) . '</p>',
+				] ];
+				$option['options'] = $intro + (array) ( $option['options'] ?? [] );
+				unset( $option['desc'] );
+			}
+			if ( isset( $option['options'] ) && is_array( $option['options'] ) ) {
+				$option['options'] = self::with_box_intros( $option['options'] );
+			}
+			$options[ $id ] = $option;
+		}
+
+		return $options;
+	}
+
+	/**
 	 * @return array<string,array> Top-level tab entries only.
 	 */
 	protected function tabs() {
@@ -305,6 +390,14 @@ class FW_SEO_Settings_Page {
 			<?php
 		endif;
 
+		if ( isset( $_GET['fw-reset'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification
+			?>
+			<div class="notice notice-success is-dismissible">
+				<p><?php esc_html_e( 'This screen is back to its defaults.', 'fw' ); ?></p>
+			</div>
+			<?php
+		endif;
+
 		if ( self::DEFAULT_VIEW === $view ) :
 			?>
 			<p class="description fw-seo-intro">
@@ -323,12 +416,32 @@ class FW_SEO_Settings_Page {
 				<?php wp_nonce_field( self::NONCE ); ?>
 				<?php
 				// phpcs:ignore WordPress.Security.EscapeOutput -- the options renderer escapes.
-				$html = fw()->backend->render_options( (array) ( $tabs[ $view ]['options'] ?? [] ), $values );
+				$html = fw()->backend->render_options( self::with_box_intros( (array) ( $tabs[ $view ]['options'] ?? [] ) ), $values );
 
 				// Reports that need WordPress fully loaded are filled in now, not
 				// while the schema was being built (see FW_SEO_Redirects::PLACEHOLDER).
 				if ( false !== strpos( $html, FW_SEO_Redirects::PLACEHOLDER ) ) {
 					$html = str_replace( FW_SEO_Redirects::PLACEHOLDER, FW_SEO_Redirects::report_html(), $html );
+				}
+				foreach ( [ 'FW_SEO_Performance' => 'report_html', 'FW_SEO_Trends' => 'report_html', 'FW_SEO_AI' => 'visibility_html' ] as $fw_seo_class => $fw_seo_method ) {
+					if ( false !== strpos( $html, $fw_seo_class::PLACEHOLDER ) ) {
+						$html = str_replace( $fw_seo_class::PLACEHOLDER, $fw_seo_class::$fw_seo_method(), $html );
+					}
+				}
+				if ( false !== strpos( $html, FW_SEO_Audit::PLACEHOLDER ) ) {
+					$html = str_replace( FW_SEO_Audit::PLACEHOLDER, FW_SEO_Audit::report_html(), $html );
+				}
+				if ( false !== strpos( $html, FW_SEO_Alt::PLACEHOLDER ) ) {
+					$html = str_replace( FW_SEO_Alt::PLACEHOLDER, FW_SEO_Alt::status_html(), $html );
+				}
+				if ( false !== strpos( $html, FW_SEO_Site_Move::PLACEHOLDER ) ) {
+					$html = str_replace( FW_SEO_Site_Move::PLACEHOLDER, FW_SEO_Site_Move::preview_html(), $html );
+				}
+				if ( false !== strpos( $html, FW_SEO_Redirect_Rules::PLACEHOLDER ) ) {
+					$html = str_replace( FW_SEO_Redirect_Rules::PLACEHOLDER, FW_SEO_Redirect_Rules::rules_html(), $html );
+				}
+				if ( false !== strpos( $html, FW_SEO_Redirect_Rules::PLACEHOLDER_404 ) ) {
+					$html = str_replace( FW_SEO_Redirect_Rules::PLACEHOLDER_404, FW_SEO_Redirect_Rules::log_html(), $html );
 				}
 				if ( false !== strpos( $html, FW_SEO_Links::PLACEHOLDER ) ) {
 					$html = str_replace( FW_SEO_Links::PLACEHOLDER, FW_SEO_Links::report_html(), $html );
@@ -350,6 +463,11 @@ class FW_SEO_Settings_Page {
 				?>
 				<p class="submit fw-seo-submit">
 					<button type="submit" class="button button-primary"><?php esc_html_e( 'Save Changes', 'fw' ); ?></button>
+					<?php if ( self::keys_of( (array) ( $tabs[ $view ]['options'] ?? [] ) ) ) : ?>
+						<a class="fw-seo-reset" style="margin-left:12px" href="<?php echo esc_url( wp_nonce_url( add_query_arg( [ 'action' => 'fw_seo_settings_reset', 'view' => $view ], admin_url( 'admin-post.php' ) ), 'fw_seo_settings_reset' ) ); ?>" onclick="return window.confirm(<?php echo esc_attr( wp_json_encode( 'console_tab' === $view
+							? __( 'Reset this screen to its defaults? The Search Console client ID and secret on it are removed too, so you would need to enter them again. Other screens are not changed.', 'fw' )
+							: __( 'Reset every setting on this screen to its default? Other screens are not changed. Export your settings first if you might want them back.', 'fw' ) ) ); ?>)"><?php esc_html_e( 'Reset this screen to defaults', 'fw' ); ?></a>
+					<?php endif; ?>
 				</p>
 			</form>
 			<?php

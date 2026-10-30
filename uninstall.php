@@ -50,8 +50,10 @@ if ( ! function_exists( 'fw_seo_uninstall_site' ) ) {
 		// The site-search log.
 		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}fw_seo_search_terms" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.SchemaChange
 		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}fw_seo_links" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.SchemaChange
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}fw_seo_redirect_rules" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.SchemaChange
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}fw_seo_404" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.SchemaChange
 
-		foreach ( [ 'fw_seo_inspect_sweep', 'fw_seo_search_log_prune', 'fw_seo_health_check', 'fw_seo_alerts_collect', 'fw_seo_alerts_email', 'fw_seo_links_batch' ] as $hook ) {
+		foreach ( [ 'fw_seo_inspect_sweep', 'fw_seo_search_log_prune', 'fw_seo_health_check', 'fw_seo_alerts_collect', 'fw_seo_alerts_email', 'fw_seo_links_batch', 'fw_seo_404_prune', 'fw_seo_audit_batch', 'fw_seo_audit_daily' ] as $hook ) {
 			wp_clear_scheduled_hook( $hook );
 		}
 

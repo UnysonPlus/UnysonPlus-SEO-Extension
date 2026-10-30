@@ -175,6 +175,118 @@ if ( ! function_exists( 'fw_ext_seo_ai_register' ) ) :
 				);
 			},
 		) );
+
+		/* ---- Site-wide settings ------------------------------------------- */
+
+		// Credentials never leave or enter through an AI client.
+		$settings_keys = static function () {
+			return class_exists( 'FW_SEO_Transfer' ) ? array_values( array_diff( FW_SEO_Transfer::known_keys(), FW_SEO_Transfer::SECRETS ) ) : array();
+		};
+
+		fw_ai_register_ability( 'seo-get-settings', array(
+			'label'       => __( 'Get the site-wide SEO settings', 'fw' ),
+			'description' => 'The site-wide SEO settings as stored: title and description templates per content type (%%tag%% syntax), noindex per group, sitemap, social, structured data and local business, robots.txt rules, feeds, redirects switches and the rest. Credentials are never included. Pass "keys" to read only some. Read this before seo-update-settings.',
+			'input'       => array( 'keys' => array( 'type' => 'array', 'items' => array( 'type' => 'string' ) ) ),
+			'permission'  => 'manage_options',
+			'readonly'    => true,
+			'execute'     => function ( $in ) use ( $settings_keys ) {
+				$known  = $settings_keys();
+				$wanted = ! empty( $in['keys'] ) ? array_values( array_intersect( (array) $in['keys'], $known ) ) : $known;
+				$stored = (array) fw_get_db_ext_settings_option( 'seo' );
+				return array( 'settings' => array_intersect_key( $stored, array_flip( $wanted ) ) );
+			},
+		) );
+
+		fw_ai_register_ability( 'seo-update-settings', array(
+			'label'       => __( 'Change site-wide SEO settings', 'fw' ),
+			'description' => 'Changes site-wide SEO settings: pass "settings" as { key: value } using the keys and value shapes seo-get-settings returns. Only the keys you pass change; unknown keys and credentials are refused. These affect every page (for example a noindex switch hides a whole group from search engines), so change only what the person asked for. Undo with undo_change.',
+			'input'       => array( 'settings' => array( 'type' => 'object' ) ),
+			'required'    => array( 'settings' ),
+			'permission'  => 'manage_options',
+			'destructive' => true,
+			'execute'     => function ( $in ) use ( $settings_keys ) {
+				$incoming = (array) ( $in['settings'] ?? array() );
+				$known    = $settings_keys();
+				$refused  = array_values( array_diff( array_keys( $incoming ), $known ) );
+				$apply    = array_intersect_key( $incoming, array_flip( $known ) );
+				if ( ! $apply ) {
+					return new WP_Error( 'fw_seo_ai_settings', 'None of those are site-wide SEO settings this tool can change: ' . implode( ', ', $refused ) );
+				}
+				$rev = fw_ai_snapshot( array( 'options' => array( 'fw_ext_settings_options:seo' ) ), 'unysonplus/seo-update-settings', 'Changed SEO settings: ' . implode( ', ', array_keys( $apply ) ) );
+				fw_set_db_ext_settings_option( 'seo', null, array_merge( (array) fw_get_db_ext_settings_option( 'seo' ), $apply ) );
+				FW_SEO_Settings::flush();
+				return array(
+					'ok'               => true,
+					'changed'          => array_keys( $apply ),
+					'refused'          => $refused,
+					'undo_revision_id' => $rev,
+				);
+			},
+		) );
+
+		/* ---- Redirects -------------------------------------------------------- */
+
+		if ( class_exists( 'FW_SEO_Redirect_Rules' ) ) {
+			fw_ai_register_ability( 'seo-list-redirects', array(
+				'label'       => __( 'List redirects and pages not found', 'fw' ),
+				'description' => 'The site\'s own redirects (old address, new address, type 301/302/307/410, group, how often used) and the most requested addresses that returned "not found" — the evidence to make new redirects from.',
+				'permission'  => 'manage_options',
+				'readonly'    => true,
+				'execute'     => function () {
+					return array(
+						'redirects' => FW_SEO_Redirect_Rules::all(),
+						'not_found' => FW_SEO_Redirect_Rules::log_rows( 50 ),
+					);
+				},
+			) );
+
+			fw_ai_register_ability( 'seo-save-redirect', array(
+				'label'       => __( 'Add or change a redirect', 'fw' ),
+				'description' => 'Adds a redirect, or replaces the one for the same old address. source: a path (/old-page/) or full old address; target: a path or full URL (empty only with code 410); code: 301 (moved for good, default), 302 / 307 (temporary) or 410 (removed for good); regex: true to match many addresses with a regular expression ($1… in the target); group: optional. A redirect only acts where the address would otherwise be "not found". Undo with undo_change.',
+				'input'       => array(
+					'source' => array( 'type' => 'string' ),
+					'target' => array( 'type' => 'string' ),
+					'code'   => array( 'type' => 'integer' ),
+					'regex'  => array( 'type' => 'boolean' ),
+					'group'  => array( 'type' => 'string' ),
+				),
+				'required'    => array( 'source' ),
+				'permission'  => 'manage_options',
+				'execute'     => function ( $in ) {
+					FW_SEO_Redirect_Rules::install();
+					FW_SEO_Redirect_Rules::mirror();
+					$rev = fw_ai_snapshot( array( 'options' => array( FW_SEO_Redirect_Rules::MIRROR ) ), 'unysonplus/seo-save-redirect', 'Redirect ' . $in['source'] . ' → ' . ( $in['target'] ?? '' ) );
+					$id  = FW_SEO_Redirect_Rules::save( array(
+						'source'   => (string) $in['source'],
+						'target'   => (string) ( $in['target'] ?? '' ),
+						'code'     => (int) ( $in['code'] ?? 301 ),
+						'is_regex' => ! empty( $in['regex'] ),
+						'grp'      => (string) ( $in['group'] ?? '' ),
+					) );
+					if ( is_wp_error( $id ) ) {
+						return $id;
+					}
+					FW_SEO_Redirect_Rules::mirror();
+					return array( 'ok' => true, 'id' => $id, 'undo_revision_id' => $rev );
+				},
+			) );
+
+			fw_ai_register_ability( 'seo-delete-redirect', array(
+				'label'       => __( 'Delete a redirect', 'fw' ),
+				'description' => 'Deletes one of the site\'s redirects by its id (from seo-list-redirects). Visitors to its old address then get "not found". Undo with undo_change.',
+				'input'       => array( 'id' => array( 'type' => 'integer' ) ),
+				'required'    => array( 'id' ),
+				'permission'  => 'manage_options',
+				'destructive' => true,
+				'execute'     => function ( $in ) {
+					FW_SEO_Redirect_Rules::mirror();
+					$rev = fw_ai_snapshot( array( 'options' => array( FW_SEO_Redirect_Rules::MIRROR ) ), 'unysonplus/seo-delete-redirect', 'Deleted redirect #' . (int) $in['id'] );
+					FW_SEO_Redirect_Rules::delete( (int) $in['id'] );
+					FW_SEO_Redirect_Rules::mirror();
+					return array( 'ok' => true, 'undo_revision_id' => $rev );
+				},
+			) );
+		}
 	}
 	add_action( 'fw_ai_assistant_register_abilities', 'fw_ext_seo_ai_register' );
 

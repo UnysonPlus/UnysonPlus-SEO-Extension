@@ -111,7 +111,7 @@ if ( ! function_exists( 'fw_seo_sitemap_source_enabled' ) ) :
 	 * @return bool
 	 */
 	function fw_seo_sitemap_source_enabled( $location_key, $setting_id ) {
-		if ( FW_SEO_Settings::flag( FW_SEO_Settings::robots_id( 'noindex', $location_key ), false ) ) {
+		if ( FW_SEO_Settings::flag( FW_SEO_Settings::robots_id( 'noindex', $location_key ), FW_SEO_Locations::default_noindex( $location_key ) ) ) {
 			return false;
 		}
 

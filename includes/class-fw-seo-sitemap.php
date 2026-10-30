@@ -381,7 +381,7 @@ class FW_SEO_Sitemap {
 
 		self::send_headers();
 
-		$has_images = (bool) array_filter( wp_list_pluck( $urls, 'images' ) );
+		$has_images = (bool) array_filter( array_column( $urls, 'images' ) );
 
 		echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
 		echo '<?xml-stylesheet type="text/xsl" href="' . esc_url( self::stylesheet_url() ) . '"?>' . "\n";
@@ -389,6 +389,14 @@ class FW_SEO_Sitemap {
 
 		if ( $has_images ) {
 			echo ' xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"';
+		}
+
+		if ( array_filter( array_column( $urls, 'videos' ) ) ) {
+			echo ' xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"';
+		}
+
+		if ( array_filter( array_column( $urls, 'news' ) ) ) {
+			echo ' xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"';
 		}
 
 		echo '>' . "\n";
@@ -413,6 +421,32 @@ class FW_SEO_Sitemap {
 				echo "\t\t<image:image>\n";
 				echo "\t\t\t<image:loc>" . esc_url( $image ) . "</image:loc>\n";
 				echo "\t\t</image:image>\n";
+			}
+
+			foreach ( (array) ( $url['videos'] ?? [] ) as $video ) {
+				echo "\t\t<video:video>\n";
+				echo "\t\t\t<video:thumbnail_loc>" . esc_url( $video['thumbnail'] ) . "</video:thumbnail_loc>\n";
+				echo "\t\t\t<video:title>" . esc_html( $video['title'] ) . "</video:title>\n";
+				echo "\t\t\t<video:description>" . esc_html( $video['description'] ) . "</video:description>\n";
+				if ( ! empty( $video['content'] ) ) {
+					echo "\t\t\t<video:content_loc>" . esc_url( $video['content'] ) . "</video:content_loc>\n";
+				}
+				if ( ! empty( $video['player'] ) ) {
+					echo "\t\t\t<video:player_loc>" . esc_url( $video['player'] ) . "</video:player_loc>\n";
+				}
+				echo "\t\t</video:video>\n";
+			}
+
+			if ( ! empty( $url['news'] ) ) {
+				$news = $url['news'];
+				echo "\t\t<news:news>\n";
+				echo "\t\t\t<news:publication>\n";
+				echo "\t\t\t\t<news:name>" . esc_html( $news['name'] ) . "</news:name>\n";
+				echo "\t\t\t\t<news:language>" . esc_html( $news['language'] ) . "</news:language>\n";
+				echo "\t\t\t</news:publication>\n";
+				echo "\t\t\t<news:publication_date>" . esc_html( $news['date'] ) . "</news:publication_date>\n";
+				echo "\t\t\t<news:title>" . esc_html( $news['title'] ) . "</news:title>\n";
+				echo "\t\t</news:news>\n";
 			}
 
 			echo "\t</url>\n";

@@ -48,9 +48,11 @@ $fw_seo_location_group = static function ( array $location ) {
 	if ( ! in_array( $key, [ 'search', '404' ], true ) ) {
 		$fields[ FW_SEO_Settings::robots_id( 'noindex', $key ) ] = [
 			'label' => __( 'No index', 'fw' ),
-			'desc'  => __( 'Keep this whole group out of search results.', 'fw' ),
+			'desc'  => in_array( $key, [ 'author', 'date' ], true )
+				? __( 'Keep this whole group out of search results. On by default for date archives, and for author archives when one person writes the posts: there they repeat the blog.', 'fw' )
+				: __( 'Keep this whole group out of search results.', 'fw' ),
 			'type'  => 'switch',
-			'value' => false,
+			'value' => FW_SEO_Locations::default_noindex( $key ),
 		];
 
 		$fields[ FW_SEO_Settings::robots_id( 'nofollow', $key ) ] = [
@@ -260,7 +262,7 @@ $options['sitemap_tab'] = [
 			'desc'    => sprintf(
 				/* translators: %s: the sitemap URL. */
 				__( 'Your sitemap lives at %s and is linked from robots.txt, which is how search engines discover it. Submit that URL once in Search Console; there is nothing to re-submit after that.', 'fw' ),
-				'<code>' . esc_html( FW_SEO_Sitemap::index_url() ) . '</code>'
+				'<a href="' . esc_url( FW_SEO_Sitemap::index_url() ) . '" target="_blank" rel="noopener"><code>' . esc_html( FW_SEO_Sitemap::index_url() ) . '</code></a>'
 			),
 			'options' => [
 				'sitemap_group' => [
@@ -649,6 +651,76 @@ $options['redirects_tab'] = [
 				],
 			],
 		],
+		'redirect_rules_box' => [
+			'title'   => __( 'Your redirects', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'For what the automatic redirects cannot know: pages that moved before this site existed, addresses from an old platform, campaign links that should point somewhere new, and pages removed for good.', 'fw' ),
+			'options' => [
+				'redirect_rules' => [
+					'type'  => 'html-full',
+					'label' => false,
+					'html'  => FW_SEO_Redirect_Rules::PLACEHOLDER,
+				],
+			],
+		],
+		'site_move_box'      => [
+			'title'   => __( 'Moving the whole site', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'When this site moves to a new domain, send every address to the same page there, with a permanent (301) redirect, so links and search rankings follow. The dashboard and the login page are never redirected, so you can always come back and switch it off, and administrators can still browse this site to check it.', 'fw' ),
+			'options' => [
+				'site_move_group' => [
+					'type'    => 'group',
+					'options' => [
+						'site_move_to'      => [
+							'label' => __( 'New address', 'fw' ),
+							'desc'  => __( 'The new site\'s address, e.g. https://www.new-name.com. Only its domain (and a folder, if the new site lives in one) is used; each page keeps its own path.', 'fw' ),
+							'type'  => 'text',
+							'value' => '',
+						],
+						'site_move'         => [
+							'label' => __( 'Redirect the whole site', 'fw' ),
+							'desc'  => __( 'Switch on only once the new site is live, with the same addresses.', 'fw' ),
+							'type'  => 'switch',
+							'value' => false,
+						],
+						'site_move_preview' => [
+							'type'  => 'html-full',
+							'label' => false,
+							'html'  => FW_SEO_Site_Move::PLACEHOLDER,
+						],
+					],
+				],
+			],
+		],
+	],
+];
+
+$options['notfound_tab'] = [
+	'title'   => __( '404s', 'fw' ),
+	'type'    => 'tab',
+	'options' => [
+		'notfound_box' => [
+			'title'   => __( 'Pages not found', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'Every address that came back "not found" is evidence: an old link somewhere, a page that moved, a typo in a newsletter. Redirect the ones that matter, from here.', 'fw' ),
+			'options' => [
+				'notfound_group' => [
+					'type'    => 'group',
+					'options' => [
+						'log_404'       => [
+							'label' => __( 'Log pages not found', 'fw' ),
+							'type'  => 'switch',
+							'value' => true,
+						],
+						'notfound_log'  => [
+							'type'  => 'html-full',
+							'label' => false,
+							'html'  => FW_SEO_Redirect_Rules::PLACEHOLDER_404,
+						],
+					],
+				],
+			],
+		],
 	],
 ];
 
@@ -671,6 +743,74 @@ $options['general_tab']['options']['feed_box'] = [
 					'type'  => 'textarea',
 					'value' => '',
 					'attr'  => [ 'placeholder' => 'The post %%post_link%% first appeared on %%site_link%%.' ],
+				],
+				'feeds_off' => [
+					'label'   => __( 'Switch off these feeds', 'fw' ),
+					'desc'    => __( 'WordPress publishes a feed for nearly everything, and few sites use more than the main one. A feed switched off is no longer linked from your pages, and its address redirects to the page it belongs to. The main feed always stays.', 'fw' ),
+					'type'    => 'checkboxes',
+					'value'   => [],
+					'choices' => [
+						'comments'  => __( 'Comment feeds (the site\'s and each post\'s)', 'fw' ),
+						'taxonomy'  => __( 'Category, tag and other taxonomy feeds', 'fw' ),
+						'author'    => __( 'Author feeds', 'fw' ),
+						'search'    => __( 'Search result feeds', 'fw' ),
+						'post_type' => __( 'Content type archive feeds', 'fw' ),
+					],
+				],
+			],
+		],
+	],
+];
+
+$options['general_tab']['options']['images_box'] = [
+	'title'   => __( 'Images', 'fw' ),
+	'type'    => 'box',
+	'desc'    => __( 'Alt text is how someone using a screen reader learns what an image shows, and how search engines read it. Written by a person it is best; a fallback is better than nothing.', 'fw' ),
+	'options' => [
+		'images_group' => [
+			'type'    => 'group',
+			'options' => [
+				'image_alt_status'   => [
+					'type'  => 'html-full',
+					'label' => false,
+					'html'  => FW_SEO_Alt::PLACEHOLDER,
+				],
+				'image_alt_fallback' => [
+					'label'   => __( 'Images without alt text', 'fw' ),
+					'desc'    => __( 'Used only for an image that has no alt text of its own. An empty alt written into the content on purpose (a decorative image) is left alone. Titles that are just a camera file name (IMG_4021) are skipped.', 'fw' ),
+					'type'    => 'select',
+					'value'   => 'none',
+					'choices' => [
+						'none'    => __( 'Leave them without', 'fw' ),
+						'title'   => __( 'Use the image\'s title', 'fw' ),
+						'caption' => __( 'Use the image\'s caption', 'fw' ),
+						'post'    => __( 'Use the title of the page it is on', 'fw' ),
+					],
+				],
+			],
+		],
+	],
+];
+
+$options['general_tab']['options']['ai_box'] = [
+	'title'   => __( 'AI suggestions', 'fw' ),
+	'type'    => 'box',
+	'desc'    => __( 'With an AI connection set up (AI Assistant settings), each page\'s SEO box can suggest titles, descriptions, FAQ questions and key points, written from the page. These two lines make the suggestions sound like your site rather than like everyone\'s.', 'fw' ),
+	'options' => [
+		'ai_group' => [
+			'type'    => 'group',
+			'options' => [
+				'ai_tone'     => [
+					'label' => __( 'Tone', 'fw' ),
+					'type'  => 'text',
+					'value' => '',
+					'attr'  => [ 'placeholder' => __( 'e.g. warm and plain-spoken, no hype', 'fw' ) ],
+				],
+				'ai_audience' => [
+					'label' => __( 'Audience', 'fw' ),
+					'type'  => 'text',
+					'value' => '',
+					'attr'  => [ 'placeholder' => __( 'e.g. families planning a seaside weekend', 'fw' ) ],
 				],
 			],
 		],
@@ -703,6 +843,54 @@ $options['general_tab']['options']['access_box'] = [
 	],
 ];
 
+$options['sitemap_tab']['options']['media_sitemaps_box'] = [
+	'title'   => __( 'Video and news sitemaps', 'fw' ),
+	'type'    => 'box',
+	'options' => [
+		'media_sitemaps_group' => [
+			'type'    => 'group',
+			'options' => [
+				'sitemap_video'      => [
+					'label' => __( 'Video sitemap', 'fw' ),
+					'desc'  => __( 'Lists every page with a video (from video elements, and YouTube, Vimeo or video files in the content) with the thumbnail, title and description search engines need to show a video result. A video with no thumbnail anywhere is left out.', 'fw' ),
+					'type'  => 'switch',
+					'value' => true,
+				],
+				'sitemap_news'       => [
+					'label' => __( 'News sitemap', 'fw' ),
+					'desc'  => __( 'Articles published in the last 48 hours, in Google News\' format. Only useful to a publisher accepted into Google News; leave it off otherwise.', 'fw' ),
+					'type'  => 'switch',
+					'value' => false,
+				],
+				'sitemap_news_name'  => [
+					'label' => __( 'Publication name', 'fw' ),
+					'desc'  => __( 'Exactly as it appears in Google News. Leave empty to use the site title.', 'fw' ),
+					'type'  => 'text',
+					'value' => '',
+				],
+				'sitemap_news_types' => [
+					'label' => __( 'Content types that are news', 'fw' ),
+					'desc'  => __( 'Comma-separated, e.g. post, or post, press_release.', 'fw' ),
+					'type'  => 'text',
+					'value' => 'post',
+				],
+			],
+		],
+	],
+];
+
+$options['sitemap_tab']['options']['html_sitemap_box'] = [
+	'title'   => __( 'A sitemap page for visitors', 'fw' ),
+	'type'    => 'box',
+	'options' => [
+		'html_sitemap_note' => [
+			'type'  => 'html-full',
+			'label' => false,
+			'html'  => '<p>' . esc_html__( 'The sitemap above is for search engines. To give visitors a page listing your content, add this shortcode to any page (in a text element, or the editor):', 'fw' ) . '</p><p><code>[seo_sitemap]</code></p><p class="description">' . esc_html__( 'Each content type gets its own heading, pages are nested under their parents, and anything kept out of search results is left out. Options: types="page,post" for these types in this order, limit="50" for the newest 50 per type, exclude="12,48" to leave pages out.', 'fw' ) . '</p>',
+		],
+	],
+];
+
 $options['sitemap_tab']['options']['indexnow_box'] = [
 	'title'   => __( 'IndexNow', 'fw' ),
 	'type'    => 'box',
@@ -720,6 +908,112 @@ $options['sitemap_tab']['options']['indexnow_box'] = [
 					'type'  => 'html-full',
 					'label' => false,
 					'html'  => FW_SEO_IndexNow::PLACEHOLDER,
+				],
+			],
+		],
+	],
+];
+
+$fw_seo_audit_types = [];
+foreach ( FW_SEO_Locations::post_types() as $fw_seo_type => $fw_seo_type_label ) {
+	$fw_seo_object                      = get_post_type_object( $fw_seo_type );
+	$fw_seo_audit_types[ $fw_seo_type ] = $fw_seo_object ? $fw_seo_object->labels->name : $fw_seo_type;
+}
+
+$options['performance_tab'] = [
+	'title'   => __( 'Search performance', 'fw' ),
+	'type'    => 'tab',
+	'options' => [
+		'performance_tab_box' => [
+			'title'   => __( 'How each page is doing in Google', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'Clicks, impressions, click-through and position for each page over the last four weeks, with the change against the four weeks before: what is gaining, what is slipping, and what people see but do not choose.', 'fw' ),
+			'options' => [
+				'performance_tab_report' => [
+					'type'  => 'html-full',
+					'label' => false,
+					'html'  => FW_SEO_Performance::PLACEHOLDER,
+				],
+			],
+		],
+	],
+];
+
+$options['momentum_tab'] = [
+	'title'   => __( 'Topic momentum', 'fw' ),
+	'type'    => 'tab',
+	'options' => [
+		'momentum_tab_box' => [
+			'title'   => __( 'Which topics are rising, and what to do about them', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'Import exports from Google Trends, and each topic is joined with what the site already knows: whether you get impressions for it, whether a page targets it, and whether your visitors search for it. Every row ends in one thing to do, including, for a topic that is fading, nothing.', 'fw' ),
+			'options' => [
+				'momentum_tab_report' => [
+					'type'  => 'html-full',
+					'label' => false,
+					'html'  => FW_SEO_Trends::PLACEHOLDER,
+				],
+			],
+		],
+	],
+];
+
+$options['ai_tab'] = [
+	'title'   => __( 'AI answers', 'fw' ),
+	'type'    => 'tab',
+	'options' => [
+		'ai_tab_box' => [
+			'title'   => __( 'Does an AI assistant mention you?', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'Ask an AI assistant the questions your customers ask, and see whether its answer mentions your site. Each run is a sample of what one assistant said on one day: answers vary between runs, people and model versions, so this is not a position you can track. Each question is a call on your own AI account, and runs only when you press the button.', 'fw' ),
+			'options' => [
+				'ai_visibility_questions' => [
+					'type'  => 'textarea',
+					'label' => __( 'Questions', 'fw' ),
+					'desc'  => __( 'One per line, as a customer would ask them (up to 20). For example: "Where can I get a good crab linguine in Harbourtown?"', 'fw' ),
+					'value' => '',
+				],
+				'ai_tab_report' => [
+					'type'  => 'html-full',
+					'label' => false,
+					'html'  => FW_SEO_AI::PLACEHOLDER,
+				],
+			],
+		],
+	],
+];
+
+$options['audit_tab'] = [
+	'title'   => __( 'Audit', 'fw' ),
+	'type'    => 'tab',
+	'options' => [
+		'audit_box'      => [
+			'title'   => __( 'What to fix, page by page', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'Every published page, checked for the problems that are worth fixing: missing or duplicated titles and descriptions, near-duplicate pages, heading structure, a focus keyphrase the page does not use, thin content. A list of specific pages for each, not a score.', 'fw' ),
+			'options' => [
+				'audit_report' => [
+					'type'  => 'html-full',
+					'label' => false,
+					'html'  => FW_SEO_Audit::PLACEHOLDER,
+				],
+			],
+		],
+		'guardrails_box' => [
+			'title'   => __( 'Pages generated in bulk', 'fw' ),
+			'type'    => 'box',
+			'options' => [
+				'guardrails_group' => [
+					'type'    => 'group',
+					'options' => [
+						'thin_noindex_types' => [
+							'label'   => __( 'Keep thin pages out of search results', 'fw' ),
+							'desc'    => __( 'For content made from a template and a list (a page per town, per service, per product): pages of these types are kept out of search results, and out of the sitemap, until they have more words than the thin-page threshold set under Going stale. Search engines judge mass-produced thin pages as a whole, so a few hundred empty ones can pull down the rest of the site.', 'fw' ),
+							'type'    => 'checkboxes',
+							'value'   => [],
+							'choices' => $fw_seo_audit_types,
+						],
+					],
 				],
 			],
 		],
@@ -1031,6 +1325,106 @@ $options['verification_tab'] = [
 							'value' => '',
 						],
 					],
+				],
+			],
+		],
+	],
+];
+
+$options['schema_tab']['options']['business_box'] = [
+	'title'   => __( 'Local business', 'fw' ),
+	'type'    => 'box',
+	'options' => [
+		'business_group' => [
+			'type'    => 'group',
+			'options' => [
+				'business_type'        => [
+					'label'   => __( 'Kind of business', 'fw' ),
+					'desc'    => __( 'For a business people visit or call. Your organisation is then described as this kind of local business, with the address and hours below: what produces the opening-hours line, map pin and directions link next to a search result.', 'fw' ),
+					'type'    => 'select',
+					'value'   => '',
+					'choices' => array_merge( [ '' => __( 'Not a local business', 'fw' ) ], array_combine( FW_SEO_Entities::BUSINESS_TYPES, FW_SEO_Entities::BUSINESS_TYPES ) ),
+				],
+				'business_street' => [
+					'label' => __( 'Street address', 'fw' ),
+					'type'  => 'text',
+					'value' => '',
+				],
+				'business_city' => [
+					'label' => __( 'Town or city', 'fw' ),
+					'type'  => 'text',
+					'value' => '',
+				],
+				'business_region' => [
+					'label' => __( 'Region or state', 'fw' ),
+					'type'  => 'text',
+					'value' => '',
+				],
+				'business_postcode' => [
+					'label' => __( 'Postcode', 'fw' ),
+					'type'  => 'text',
+					'value' => '',
+				],
+				'business_country' => [
+					'label' => __( 'Country', 'fw' ),
+					'type'  => 'text',
+					'value' => '',
+					'attr'  => [ 'placeholder' => 'GB' ],
+				],
+				'business_geo' => [
+					'label' => __( 'Map position', 'fw' ),
+					'type'  => 'text',
+					'value' => '',
+					'attr'  => [ 'placeholder' => '51.5072, -0.1276' ],
+				],
+				'business_price_range' => [
+					'label' => __( 'Price range', 'fw' ),
+					'type'  => 'text',
+					'value' => '',
+					'attr'  => [ 'placeholder' => '££' ],
+				],
+				'business_hours_mon' => [
+					'label' => __( 'Monday', 'fw' ),
+					'type'  => 'text',
+					'value' => '',
+					'desc'  => __( 'Like 09:00-17:00, or 09:00-12:30, 13:30-18:00 for a lunch break, or closed. Leave empty when unknown. A Business Info element with no hours of its own shows these.', 'fw' ),
+					'attr'  => [ 'placeholder' => '09:00-17:00' ],
+				],
+				'business_hours_tue' => [
+					'label' => __( 'Tuesday', 'fw' ),
+					'type'  => 'text',
+					'value' => '',
+					'attr'  => [ 'placeholder' => '09:00-17:00' ],
+				],
+				'business_hours_wed' => [
+					'label' => __( 'Wednesday', 'fw' ),
+					'type'  => 'text',
+					'value' => '',
+					'attr'  => [ 'placeholder' => '09:00-17:00' ],
+				],
+				'business_hours_thu' => [
+					'label' => __( 'Thursday', 'fw' ),
+					'type'  => 'text',
+					'value' => '',
+					'attr'  => [ 'placeholder' => '09:00-17:00' ],
+				],
+				'business_hours_fri' => [
+					'label' => __( 'Friday', 'fw' ),
+					'type'  => 'text',
+					'value' => '',
+					'attr'  => [ 'placeholder' => '09:00-17:00' ],
+				],
+				'business_hours_sat' => [
+					'label' => __( 'Saturday', 'fw' ),
+					'type'  => 'text',
+					'value' => '',
+					'attr'  => [ 'placeholder' => '09:00-17:00' ],
+				],
+				'business_hours_sun' => [
+					'label' => __( 'Sunday', 'fw' ),
+					'type'  => 'text',
+					'value' => '',
+					'attr'  => [ 'placeholder' => 'closed' ],
 				],
 			],
 		],

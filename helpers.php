@@ -376,7 +376,7 @@ if ( ! function_exists( 'fw_seo_robots' ) ) :
 		$nofollow = (bool) FW_SEO_Store::get( $ctx, 'nofollow' );
 
 		if ( ! $noindex ) {
-			$noindex = FW_SEO_Settings::flag( FW_SEO_Settings::robots_id( 'noindex', $ctx->template_key() ), false );
+			$noindex = FW_SEO_Settings::flag( FW_SEO_Settings::robots_id( 'noindex', $ctx->template_key() ), FW_SEO_Locations::default_noindex( $ctx->template_key() ) );
 		}
 
 		if ( ! $nofollow ) {

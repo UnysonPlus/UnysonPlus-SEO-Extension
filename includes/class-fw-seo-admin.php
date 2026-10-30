@@ -82,10 +82,25 @@ class FW_SEO_Admin {
 		// a page while they are working on that page.
 		$index = class_exists( 'FW_SEO_Inspect' ) ? FW_SEO_Inspect::badge_html( $post->ID, true ) : '';
 
+		// The focus keyphrase and what the saved page shows for it.
+		if ( class_exists( 'FW_SEO_Analysis' ) ) {
+			echo FW_SEO_Analysis::editor_html( $post->ID ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in editor_html().
+		}
+
+		// Suggestions from the site's AI connection, when there is one.
+		if ( class_exists( 'FW_SEO_AI' ) ) {
+			echo FW_SEO_AI::editor_html( $post->ID ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in editor_html().
+		}
+
 		// Whether anything on the site links here: an orphan is only fixed by
 		// someone who knows it is one.
 		if ( class_exists( 'FW_SEO_Links' ) ) {
 			echo FW_SEO_Links::editor_html( $post->ID ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in editor_html().
+		}
+
+		// Where links to and from this page could go, collapsed.
+		if ( class_exists( 'FW_SEO_Link_Suggest' ) ) {
+			echo FW_SEO_Link_Suggest::editor_html( $post->ID ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in editor_html().
 		}
 
 		// An alert about this page, said while the page is open.

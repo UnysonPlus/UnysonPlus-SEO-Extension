@@ -24,8 +24,15 @@
    be a quiet section rule instead. */
 body .fw-ext-seo-settings .fw-backend-option-type-html-full {
 	margin: 0;
-	padding: 0;
+	padding: 0 20px 14px;
 	border: 0;
+}
+
+/* Every other html-full block (the reports, setup steps and lists) lines up with
+   the labels of ordinary rows, 20px in. Only the headings run edge to edge: their
+   rule spans the box and they carry their own 20px. */
+body .fw-ext-seo-settings .fw-backend-option-type-html-full:has(.fw-seo-settings-heading) {
+	padding: 0;
 }
 
 /* `body` to match the Admin Skin, which styles every html-full option as a
@@ -67,4 +74,11 @@ body .fw-ext-seo-settings .fw-backend-option-type-html-full .fw-inner {
 	width: 0;
 	background: var(--upa-accent, var(--fw-accent, #3858e9));
 	transition: width .2s ease;
+}
+
+/* A box's explanation, shown at its top (see with_box_intros()). */
+.fw-ext-seo-settings .fw-seo-box-intro {
+	max-width: 60em;
+	margin: 14px 0 4px;
+	color: var(--upa-text2, #50575e);
 }
