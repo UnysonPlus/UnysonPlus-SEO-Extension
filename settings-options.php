@@ -162,6 +162,36 @@ $options = [
 								'type'  => 'switch',
 								'value' => true,
 							],
+							'paged_titles'        => [
+								'label' => __( 'Number the pages of a list', 'fw' ),
+								'desc'  => __( 'On page 2 and beyond of the blog, a category or a search, add "Page 2 of 7" to the title when its template does not already say which page it is, so each page has a title of its own.', 'fw' ),
+								'type'  => 'switch',
+								'value' => true,
+							],
+						],
+					],
+				],
+			],
+			'attachments_box' => [
+				'title'   => __( 'Attachment pages', 'fw' ),
+				'type'    => 'box',
+				'desc'    => __( 'WordPress makes a page for every file you upload — a title, the image, and little else. Search engines index those thin pages anyway.', 'fw' ) . ' ' . FW_SEO_Attachments::core_state_text(),
+				'options' => [
+					'attachments_group' => [
+						'type'    => 'group',
+						'options' => [
+							'attachment_pages' => [
+								'label'   => __( 'Attachment pages', 'fw' ),
+								'type'    => 'select',
+								'value'   => 'core',
+								'choices' => [
+									'core'   => __( 'Leave it to WordPress', 'fw' ),
+									'parent' => __( 'Send visitors to the post the file belongs to (recommended)', 'fw' ),
+									'file'   => __( 'Send visitors to the file itself', 'fw' ),
+									'keep'   => __( 'Keep attachment pages', 'fw' ),
+								],
+								'desc'    => __( 'A file not attached to any post goes to the file itself.', 'fw' ),
+							],
 						],
 					],
 				],
@@ -490,14 +520,14 @@ $options['vitals_tab'] = [
 					'options' => [
 						'crux_api_key'  => [
 							'label' => __( 'Chrome UX Report API key', 'fw' ),
-							'desc'  => __( 'Free from Google Cloud: enable the Chrome UX Report API and create an API key. The data itself costs nothing, and only your own site is ever queried.', 'fw' ),
+							'desc'  => __( 'Free from Google Cloud: create an API key and enable two APIs for it — the Chrome UX Report API (the field data above) and the PageSpeed Insights API (the diagnostics below). Both are free, and only your own site is ever queried.', 'fw' ),
 							'type'  => 'text',
 							'value' => '',
 						],
 						'vitals_report' => [
 							'type'  => 'html-full',
 							'label' => false,
-							'html'  => $fw_seo_wants( 'vitals_tab' ) ? FW_SEO_Vitals::report_html() : '',
+							'html'  => $fw_seo_wants( 'vitals_tab' ) ? FW_SEO_Vitals::report_html() . FW_SEO_Speed::report_html() : '',
 						],
 					],
 				],
@@ -541,6 +571,30 @@ $options['console_tab'] = [
 	],
 ];
 
+$options['rank_tab'] = [
+	'title'   => __( 'Where pages rank', 'fw' ),
+	'type'    => 'tab',
+	'options' => [
+		'rank_box' => [
+			'title'   => __( 'Almost on page one', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'Searches where a page sits at positions 8 to 15 — close enough to the first page that a small improvement pays, far enough down that nobody sees it. Your own Search Console data, not a scrape: averaged across everyone who saw the result, so treat it as a trend.', 'fw' ),
+			'options' => [
+				'rank_group' => [
+					'type'    => 'group',
+					'options' => [
+						'rank_report' => [
+							'type'  => 'html-full',
+							'label' => false,
+							'html'  => $fw_seo_wants( 'rank_tab' ) ? FW_SEO_Rank::report_html() : '',
+						],
+					],
+				],
+			],
+		],
+	],
+];
+
 $options['coverage_tab'] = [
 	'title'   => __( 'Index coverage', 'fw' ),
 	'type'    => 'tab',
@@ -559,6 +613,293 @@ $options['coverage_tab'] = [
 							'html'  => $fw_seo_wants( 'coverage_tab' ) ? FW_SEO_Inspect::report_html() : '',
 						],
 					],
+				],
+			],
+		],
+	],
+];
+
+$options['redirects_tab'] = [
+	'title'   => __( 'Redirects', 'fw' ),
+	'type'    => 'tab',
+	'options' => [
+		'redirects_box' => [
+			'title'   => __( 'When an address changes', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'Rename a page, move it under another parent, or rename a category, and its address changes — every link to the old one would land on a 404. This keeps the old address working by sending visitors and search engines on to the new one.', 'fw' ),
+			'options' => [
+				'redirects_group' => [
+					'type'    => 'group',
+					'options' => [
+						'redirects_auto' => [
+							'label' => __( 'Redirect old addresses automatically', 'fw' ),
+							'desc'  => __( 'Leave on unless another plugin already manages redirects for this site.', 'fw' ),
+							'type'  => 'switch',
+							'value' => true,
+						],
+						'redirects_report' => [
+							'type'  => 'html-full',
+							'label' => false,
+							// A placeholder, filled in when the page is drawn: this schema can be
+							// built before `init`, when WordPress cannot yet make pretty term
+							// links, and a category target would read as the home page.
+							'html'  => FW_SEO_Redirects::PLACEHOLDER,
+						],
+					],
+				],
+			],
+		],
+	],
+];
+
+$fw_seo_roles = [];
+foreach ( ( function_exists( 'wp_roles' ) ? wp_roles()->get_names() : [] ) as $fw_seo_role => $fw_seo_role_name ) {
+	$fw_seo_roles[ $fw_seo_role ] = translate_user_role( $fw_seo_role_name );
+}
+
+$options['general_tab']['options']['feed_box'] = [
+	'title'   => __( 'RSS feed', 'fw' ),
+	'type'    => 'box',
+	'desc'    => __( 'Sites that copy content automatically usually copy it from your feed. A line linking back to the original, added to every feed item, means the copies link to you.', 'fw' ),
+	'options' => [
+		'feed_group' => [
+			'type'    => 'group',
+			'options' => [
+				'rss_after' => [
+					'label' => __( 'Add after each feed item', 'fw' ),
+					'desc'  => __( 'Leave empty to add nothing. %%post_link%% is a link to the post, %%site_link%% a link to your site. Basic HTML is allowed.', 'fw' ),
+					'type'  => 'textarea',
+					'value' => '',
+					'attr'  => [ 'placeholder' => 'The post %%post_link%% first appeared on %%site_link%%.' ],
+				],
+			],
+		],
+	],
+];
+
+$options['general_tab']['options']['access_box'] = [
+	'title'   => __( 'Access and removal', 'fw' ),
+	'type'    => 'box',
+	'options' => [
+		'access_group' => [
+			'type'    => 'group',
+			'options' => [
+				'editor_roles'        => [
+					'label'   => __( 'Who can edit SEO fields', 'fw' ),
+					'desc'    => __( 'The SEO box on posts and terms, its column in lists, and Quick Edit. Nothing ticked means everyone who can edit the content. Administrators can always edit them.', 'fw' ),
+					'type'    => 'checkboxes',
+					'inline'  => true,
+					'value'   => [],
+					'choices' => $fw_seo_roles,
+				],
+				'delete_on_uninstall' => [
+					'label' => __( 'Delete all SEO data when the extension is deleted', 'fw' ),
+					'desc'  => __( 'Every setting, every title and description written for a post or term, the redirects, the search log and the generated sharing cards. Deactivating never deletes anything; only deleting the extension does, and only with this on. It cannot be undone.', 'fw' ),
+					'type'  => 'switch',
+					'value' => false,
+				],
+			],
+		],
+	],
+];
+
+$options['sitemap_tab']['options']['indexnow_box'] = [
+	'title'   => __( 'IndexNow', 'fw' ),
+	'type'    => 'box',
+	'desc'    => __( 'Tell Bing, Yandex and the other search engines that share IndexNow about a page the moment it is published or updated, instead of waiting for them to crawl it again. No account or key is needed: the site proves it is yours with a small key file it serves itself. Google does not take part; it keeps finding changes through the sitemap.', 'fw' ),
+	'options' => [
+		'indexnow_group' => [
+			'type'    => 'group',
+			'options' => [
+				'indexnow'        => [
+					'label' => __( 'Send new and updated pages', 'fw' ),
+					'type'  => 'switch',
+					'value' => false,
+				],
+				'indexnow_status' => [
+					'type'  => 'html-full',
+					'label' => false,
+					'html'  => FW_SEO_IndexNow::PLACEHOLDER,
+				],
+			],
+		],
+	],
+];
+
+$options['alerts_tab'] = [
+	'title'   => __( 'Alerts', 'fw' ),
+	'type'    => 'tab',
+	'options' => [
+		'alerts_box'       => [
+			'title'   => __( 'What needs attention', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'The few findings worth interrupting you for, collected once a day from the reports: a page many people see in Google but few click, a page whose impressions fell by half, an old page that still brings visitors, a page set to noindex that was getting clicks, a page just off the first page, a search on your site that keeps finding nothing. Each one names the page and what to do. They also show on the Dashboard and at the top of the page\'s SEO box.', 'fw' ),
+			'options' => [
+				'alerts_report' => [
+					'type'  => 'html-full',
+					'label' => false,
+					'html'  => FW_SEO_Alerts::PLACEHOLDER,
+				],
+			],
+		],
+		'alerts_email_box' => [
+			'title'   => __( 'Weekly email', 'fw' ),
+			'type'    => 'box',
+			'options' => [
+				'alerts_email_group' => [
+					'type'    => 'group',
+					'options' => [
+						'alerts_email'    => [
+							'label' => __( 'Email the alerts every week', 'fw' ),
+							'desc'  => __( 'Only when there is something to say, and never the same list twice. SEO moves in months, so weekly is the most often it is worth hearing about.', 'fw' ),
+							'type'  => 'switch',
+							'value' => false,
+						],
+						'alerts_email_to' => [
+							'label' => __( 'Send to', 'fw' ),
+							'desc'  => __( 'Leave empty to use the site\'s administration email address.', 'fw' ),
+							'type'  => 'text',
+							'value' => '',
+						],
+					],
+				],
+			],
+		],
+	],
+];
+
+$options['links_tab'] = [
+	'title'   => __( 'Links', 'fw' ),
+	'type'    => 'tab',
+	'options' => [
+		'links_box'          => [
+			'title'   => __( 'Links on the site', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'Every link in your pages, read from the content and from the page builder (buttons, cards and accordions included), but not from the header, footer or menus, which link to everything. It answers which pages nothing links to, which affiliate links still pass authority, and which other sites you link to most.', 'fw' ),
+			'options' => [
+				'links_report' => [
+					'type'  => 'html-full',
+					'label' => false,
+					'html'  => FW_SEO_Links::PLACEHOLDER,
+				],
+			],
+		],
+		'links_settings_box' => [
+			'title'   => __( 'Affiliate links', 'fw' ),
+			'type'    => 'box',
+			'options' => [
+				'links_settings_group' => [
+					'type'    => 'group',
+					'options' => [
+						'links_affiliate_patterns' => [
+							'label' => __( 'Also count as affiliate', 'fw' ),
+							'desc'  => __( 'Links are already counted as affiliate when they go through the usual folders on your own site (/go/, /out/, /recommends/, /refer/…), through one of your short links, or carry an affiliate tracking parameter. Add your own, one per line: a folder on your site starting with / (for example /deals/), or a site\'s address (for example partner.example.com). Rebuild the report after changing this.', 'fw' ),
+							'type'  => 'textarea',
+							'value' => '',
+						],
+					],
+				],
+			],
+		],
+	],
+];
+
+$options['health_tab'] = [
+	'title'   => __( 'Site health', 'fw' ),
+	'type'    => 'tab',
+	'options' => [
+		'health_box' => [
+			'title'   => __( 'Can search engines find the site?', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'The failures that hide a whole site from search are usually one switch, and nobody notices for weeks: the site left on "discourage search engines" after launch, the homepage set to noindex, robots.txt blocking everything, the sitemap gone. The site fetches its own pages the way a search engine would and checks.', 'fw' ),
+			'options' => [
+				'health_report' => [
+					'type'  => 'html-full',
+					'label' => false,
+					'html'  => FW_SEO_Health::PLACEHOLDER,
+				],
+			],
+		],
+	],
+];
+
+$options['robots_tab'] = [
+	'title'   => __( 'robots.txt', 'fw' ),
+	'type'    => 'tab',
+	'options' => [
+		'robots_box'       => [
+			'title'   => __( 'robots.txt', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'robots.txt tells crawlers which addresses not to fetch. WordPress writes it for you; add your own rules here. It controls crawling, not indexing: to keep a page out of search results, use its noindex switch and leave it crawlable.', 'fw' ),
+			'options' => [
+				'robots_group' => [
+					'type'    => 'group',
+					'options' => [
+						'robots_block_search' => [
+							'label' => __( 'Block internal search results', 'fw' ),
+							'desc'  => __( 'Search result pages (/?s=…) can be generated without end and are thin copies of your content. Blocking them saves crawlers for the pages that matter.', 'fw' ),
+							'type'  => 'switch',
+							'value' => false,
+						],
+						'robots_ai_training'  => [
+							'label'   => __( 'Block AI training crawlers', 'fw' ),
+							'desc'    => __( 'These collect pages to train AI models. Blocking them does not affect search results. Whether to block them is your call.', 'fw' ),
+							'type'    => 'checkboxes',
+							'inline'  => true,
+							'value'   => [],
+							'choices' => array_combine( FW_SEO_Robots::AI_TRAINING, FW_SEO_Robots::AI_TRAINING ),
+						],
+						'robots_ai_search'    => [
+							'label'   => __( 'Block AI search crawlers', 'fw' ),
+							'desc'    => __( 'These fetch pages to answer questions in AI search and assistants. Blocking them keeps the site out of those answers, which also means no visitors from them.', 'fw' ),
+							'type'    => 'checkboxes',
+							'inline'  => true,
+							'value'   => [],
+							'choices' => array_combine( FW_SEO_Robots::AI_SEARCH, FW_SEO_Robots::AI_SEARCH ),
+						],
+						'robots_rules'        => [
+							'label'           => __( 'Your own rules', 'fw' ),
+							'desc'            => __( 'Each rule: which crawler (* means all), Allow or Disallow, and a path starting with / (use * as a wildcard and $ for "ends here"). A rule that would break the file is left out, and the preview says why.', 'fw' ),
+							'type'            => 'addable-box',
+							'value'           => [],
+							'add-button-text' => __( 'Add rule', 'fw' ),
+							'template'        => '{{= o.agent || "*" }} — {{= o.directive === "allow" ? "Allow" : "Disallow" }}: {{= o.path }}',
+							'box-options'     => [
+								'agent'     => [
+									'type'  => 'text',
+									'label' => __( 'Crawler', 'fw' ),
+									'value' => '*',
+								],
+								'directive' => [
+									'type'    => 'select',
+									'label'   => __( 'Rule', 'fw' ),
+									'value'   => 'disallow',
+									'choices' => [
+										'disallow' => __( 'Disallow', 'fw' ),
+										'allow'    => __( 'Allow', 'fw' ),
+									],
+								],
+								'path'      => [
+									'type'  => 'text',
+									'label' => __( 'Path', 'fw' ),
+									'value' => '',
+								],
+							],
+						],
+					],
+				],
+			],
+		],
+		'robots_preview_box' => [
+			'title'   => __( 'Preview', 'fw' ),
+			'type'    => 'box',
+			'options' => [
+				'robots_preview' => [
+					'type'  => 'html-full',
+					'label' => false,
+					// Filled in when the page is drawn: it runs the robots_txt filters,
+					// which other plugins may register late.
+					'html'  => FW_SEO_Robots::PLACEHOLDER,
 				],
 			],
 		],
@@ -681,6 +1022,12 @@ $options['verification_tab'] = [
 						'verify_baidu'     => [
 							'label' => __( 'Baidu Webmaster', 'fw' ),
 							'type'  => 'text',
+							'value' => '',
+						],
+						'verify_other'     => [
+							'label' => __( 'Other services', 'fw' ),
+							'desc'  => __( 'For a service without a box above, paste its whole verification tag here, one per line: <meta name="…" content="…">. Only meta tags with a name and content are output.', 'fw' ),
+							'type'  => 'textarea',
 							'value' => '',
 						],
 					],

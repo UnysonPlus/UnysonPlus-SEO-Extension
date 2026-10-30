@@ -472,6 +472,90 @@ class FW_SEO_Inspect {
 	}
 
 	/* ---------------------------------------------------------------------- *
+	 * Where people work: the posts list and the editor
+	 * ---------------------------------------------------------------------- */
+
+	/**
+	 * A compact index-state badge for one post, or '' when there is nothing to say.
+	 *
+	 * Empty when Search Console is not connected (no promise of data that will
+	 * never arrive) and when the page has not been checked yet (a "not known"
+	 * badge on every row of a fresh install is noise, not information).
+	 *
+	 * @param int  $post_id
+	 * @param bool $detail Add Google's own phrase and the canonical conflict.
+	 *
+	 * @return string
+	 */
+	public static function badge_html( $post_id, $detail = false ) {
+		if ( ! class_exists( 'FW_SEO_Console' ) || ! FW_SEO_Console::connected() ) {
+			return '';
+		}
+
+		$row = self::stored( $post_id );
+
+		if ( ! $row ) {
+			return '';
+		}
+
+		$state  = self::state( $row );
+		$labels = self::states();
+		$title  = (string) ( $row['coverage'] ?? '' );
+
+		$html  = self::badge_css();
+		$html .= '<span class="fw-seo-flag fw-seo-flag-' . esc_attr( $state ) . '" title="' . esc_attr( $title ) . '">'
+			. esc_html( $labels[ $state ] ?? $state ) . '</span>';
+
+		if ( $detail ) {
+			if ( '' !== $title ) {
+				$html .= ' <span class="fw-seo-index-why">' . esc_html( $title ) . '</span>';
+			}
+
+			if ( ! empty( $row['canonical_mismatch'] ) ) {
+				$html .= '<br /><small>' . sprintf(
+					/* translators: %s: the URL Google treats as canonical. */
+					esc_html__( 'Google treats %s as the original instead.', 'fw' ),
+					esc_html( (string) $row['canonical']['google'] )
+				) . '</small>';
+			}
+		}
+
+		return $html;
+	}
+
+	/**
+	 * The badge colours, printed once per request with the first badge.
+	 *
+	 * Inline rather than a stylesheet: the posts list and the editor do not
+	 * load the SEO screen's CSS, and enqueueing a file for six rules on every
+	 * list screen costs more than it saves.
+	 *
+	 * @return string
+	 */
+	protected static function badge_css() {
+		static $done = false;
+
+		if ( $done ) {
+			return '';
+		}
+
+		$done = true;
+
+		return '<style>'
+			. '.fw-seo-flag{display:inline-block;padding:1px 7px;border-radius:9px;font-size:11px;line-height:1.6;background:#f0f0f1;color:#50575e;white-space:nowrap}'
+			. '.fw-seo-flag-indexed{background:#eaf6ee;color:#1d6336}'
+			. '.fw-seo-flag-missing{background:#fcecec;color:#8a1f1f}'
+			. '.fw-seo-flag-excluded{background:#eef1f3;color:#50575e}'
+			. '.fw-seo-flag-unknown{background:#f6f3ea;color:#6b5a16}'
+			. '.fw-seo-index-why{color:#646970}'
+			// The longest label is "Excluded on purpose"; without a width the
+			// list squeezes the column and clips the badge at the table edge.
+			. '.wp-list-table .column-fw_seo_index{width:10.5em}'
+			. '.fw-seo-index-line{margin:0 0 10px;padding:8px 12px;background:#f6f7f7;border-radius:6px}'
+			. '</style>';
+	}
+
+	/* ---------------------------------------------------------------------- *
 	 * The report
 	 * ---------------------------------------------------------------------- */
 

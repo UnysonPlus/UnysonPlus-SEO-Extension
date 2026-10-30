@@ -45,6 +45,10 @@ class FW_SEO_Admin {
 	 * @internal
 	 */
 	public function _action_add_meta_box() {
+		if ( ! FW_SEO_Additions::can_edit() ) {
+			return;
+		}
+
 		foreach ( array_keys( FW_SEO_Locations::post_types() ) as $post_type ) {
 			add_meta_box(
 				'fw-seo',
@@ -72,6 +76,32 @@ class FW_SEO_Admin {
 		}
 
 		$values = self::apply_prefill( $values, $ctx );
+
+		// What Google did with this page, where the person editing it will see
+		// it — the report says the same thing, but nobody reads a report about
+		// a page while they are working on that page.
+		$index = class_exists( 'FW_SEO_Inspect' ) ? FW_SEO_Inspect::badge_html( $post->ID, true ) : '';
+
+		// Whether anything on the site links here: an orphan is only fixed by
+		// someone who knows it is one.
+		if ( class_exists( 'FW_SEO_Links' ) ) {
+			echo FW_SEO_Links::editor_html( $post->ID ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in editor_html().
+		}
+
+		// An alert about this page, said while the page is open.
+		if ( class_exists( 'FW_SEO_Alerts' ) ) {
+			echo FW_SEO_Alerts::editor_html( $post->ID ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in editor_html().
+		}
+
+		if ( '' !== $index ) {
+			echo '<p class="fw-seo-index-line">' . esc_html__( 'In Google:', 'fw' ) . ' ' . $index . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in badge_html().
+		}
+
+		// The searches this page already appears for, collapsed: useful when
+		// rewriting a title, out of the way the rest of the time.
+		if ( class_exists( 'FW_SEO_Rank' ) ) {
+			echo FW_SEO_Rank::editor_html( $post->ID ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in editor_html().
+		}
 
 		self::render_tabs( self::get_tabs( $post->ID, null, $ctx ), $values, 'fw-seo-metabox' );
 	}
@@ -140,6 +170,10 @@ class FW_SEO_Admin {
 	 * @param WP_Post $post
 	 */
 	public function _action_save_post( $post_id, $post ) {
+		if ( ! FW_SEO_Additions::can_edit() ) {
+			return;
+		}
+
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
 			return;
 		}
@@ -271,6 +305,10 @@ class FW_SEO_Admin {
 	 * @internal
 	 */
 	public function _action_register_term_fields() {
+		if ( ! FW_SEO_Additions::can_edit() ) {
+			return;
+		}
+
 		foreach ( array_keys( FW_SEO_Locations::taxonomies() ) as $taxonomy ) {
 			add_action( $taxonomy . '_edit_form', [ $this, 'render_term_fields' ], 10, 2 );
 			add_action( 'edited_' . $taxonomy, [ $this, '_action_save_term' ], 10, 2 );
@@ -308,6 +346,10 @@ class FW_SEO_Admin {
 	 * @param int $term_id
 	 */
 	public function _action_save_term( $term_id ) {
+		if ( ! FW_SEO_Additions::can_edit() ) {
+			return;
+		}
+
 		if ( ! isset( $_POST['fw_seo_nonce'] ) ) {
 			return;
 		}

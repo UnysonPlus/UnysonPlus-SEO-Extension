@@ -59,6 +59,17 @@ class FW_Extension_SEO extends FW_Extension {
 		require_once $includes . 'class-fw-seo-vitals.php';
 		require_once $includes . 'class-fw-seo-console.php';
 		require_once $includes . 'class-fw-seo-inspect.php';
+		require_once $includes . 'class-fw-seo-rank.php';
+		require_once $includes . 'class-fw-seo-speed.php';
+		require_once $includes . 'class-fw-seo-transfer.php';
+		require_once $includes . 'class-fw-seo-redirects.php';
+		require_once $includes . 'class-fw-seo-attachments.php';
+		require_once $includes . 'class-fw-seo-robots.php';
+		require_once $includes . 'class-fw-seo-additions.php';
+		require_once $includes . 'class-fw-seo-indexnow.php';
+		require_once $includes . 'class-fw-seo-health.php';
+		require_once $includes . 'class-fw-seo-alerts.php';
+		require_once $includes . 'class-fw-seo-links.php';
 		require_once $includes . 'class-fw-seo-store.php';
 		require_once $includes . 'class-fw-seo-locations.php';
 		require_once $includes . 'class-fw-seo-settings.php';
@@ -74,10 +85,20 @@ class FW_Extension_SEO extends FW_Extension {
 
 		// Both sides: the front end records searches, the admin reports them.
 		FW_SEO_Search_Log::init();
+		FW_SEO_Redirects::init();
+		FW_SEO_Attachments::init();
+		FW_SEO_Robots::init();
+		FW_SEO_Additions::init();
+		FW_SEO_IndexNow::init();
+		FW_SEO_Health::init();
+		FW_SEO_Alerts::init();
+		FW_SEO_Links::init();
 		FW_SEO_Card::init();
 		FW_SEO_Vitals::init();
 		FW_SEO_Console::init();
 		FW_SEO_Inspect::init();
+		FW_SEO_Speed::init();
+		FW_SEO_Transfer::init();
 	}
 
 	/**
@@ -212,7 +233,7 @@ class FW_Extension_SEO extends FW_Extension {
 
 		$resolved = FW_SEO_Chain::resolve( 'title', $this->context );
 
-		return '' !== $resolved ? $resolved : $title;
+		return FW_SEO_Additions::apply_paged_title( '' !== $resolved ? $resolved : $title, $this->context );
 	}
 
 	/**
@@ -413,6 +434,10 @@ class FW_Extension_SEO extends FW_Extension {
 				'name'    => $meta_name,
 				'content' => $value,
 			];
+		}
+
+		foreach ( FW_SEO_Additions::parse_verification( (string) FW_SEO_Settings::get( 'verify_other', '' ) ) as $i => $tag ) {
+			$tags[ 'verify_other_' . $i ] = $tag;
 		}
 
 		return $tags;

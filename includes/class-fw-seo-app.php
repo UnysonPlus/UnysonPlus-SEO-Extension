@@ -82,14 +82,20 @@ class FW_SEO_App {
 				'items' => array(
 					'sitemap_tab'      => array( 'label' => __( 'Sitemap', 'fw' ), 'icon' => 'dashicons-media-spreadsheet' ),
 					'verification_tab' => array( 'label' => __( 'Verification', 'fw' ), 'icon' => 'dashicons-yes-alt' ),
+					'redirects_tab'    => array( 'label' => __( 'Redirects', 'fw' ), 'icon' => 'dashicons-randomize' ),
+					'robots_tab'       => array( 'label' => __( 'robots.txt', 'fw' ), 'icon' => 'dashicons-shield' ),
 				),
 			),
 			'reports'    => array(
 				'label' => __( 'Reports', 'fw' ),
 				'items' => array(
+					'alerts_tab'       => array( 'label' => __( 'Alerts', 'fw' ), 'icon' => 'dashicons-bell' ),
+					'health_tab'       => array( 'label' => __( 'Site health', 'fw' ), 'icon' => 'dashicons-heart' ),
 					'console_tab'   => array( 'label' => __( 'Search Console', 'fw' ), 'icon' => 'dashicons-chart-line' ),
 					'coverage_tab'  => array( 'label' => __( 'Index coverage', 'fw' ), 'icon' => 'dashicons-visibility' ),
+					'rank_tab'      => array( 'label' => __( 'Where pages rank', 'fw' ), 'icon' => 'dashicons-sort' ),
 					'search_tab'    => array( 'label' => __( 'Site search', 'fw' ), 'icon' => 'dashicons-search' ),
+					'links_tab'        => array( 'label' => __( 'Links', 'fw' ), 'icon' => 'dashicons-admin-links' ),
 					'freshness_tab' => array( 'label' => __( 'Going stale', 'fw' ), 'icon' => 'dashicons-backup' ),
 					'vitals_tab'    => array( 'label' => __( 'Page speed', 'fw' ), 'icon' => 'dashicons-performance' ),
 				),

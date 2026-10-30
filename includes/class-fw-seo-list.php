@@ -46,8 +46,13 @@ class FW_SEO_List {
 	 * @internal
 	 */
 	public function _action_register() {
+		if ( ! FW_SEO_Additions::can_edit() ) {
+			return;
+		}
+
 		foreach ( array_keys( FW_SEO_Locations::post_types() ) as $post_type ) {
 			add_filter( "manage_{$post_type}_posts_columns", [ $this, '_filter_columns' ] );
+			add_filter( "manage_{$post_type}_posts_columns", [ $this, '_filter_index_column' ], 20 );
 			add_action( "manage_{$post_type}_posts_custom_column", [ $this, '_action_post_column' ], 10, 2 );
 		}
 
@@ -55,6 +60,31 @@ class FW_SEO_List {
 			add_filter( "manage_edit-{$taxonomy}_columns", [ $this, '_filter_columns' ] );
 			add_filter( "manage_{$taxonomy}_custom_column", [ $this, '_filter_term_column' ], 10, 3 );
 		}
+	}
+
+	/**
+	 * @internal
+	 *
+	 * @param array $columns
+	 *
+	 * @return array
+	 */
+	/**
+	 * The index-state column — only once Search Console is connected, so a
+	 * site that never will be does not carry an empty column forever.
+	 *
+	 * @internal
+	 *
+	 * @param array $columns
+	 *
+	 * @return array
+	 */
+	public function _filter_index_column( $columns ) {
+		if ( class_exists( 'FW_SEO_Console' ) && FW_SEO_Console::connected() ) {
+			$columns['fw_seo_index'] = __( 'Index', 'fw' );
+		}
+
+		return $columns;
 	}
 
 	/**
@@ -78,6 +108,12 @@ class FW_SEO_List {
 	 * @param int    $post_id
 	 */
 	public function _action_post_column( $column, $post_id ) {
+		if ( 'fw_seo_index' === $column ) {
+			echo FW_SEO_Inspect::badge_html( $post_id ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in badge_html().
+
+			return;
+		}
+
 		if ( 0 !== strpos( $column, 'fw_seo_' ) ) {
 			return;
 		}
@@ -387,6 +423,10 @@ class FW_SEO_List {
 	 * @param WP_Post $post
 	 */
 	public function _action_save_quick_edit( $post_id, $post ) {
+		if ( ! FW_SEO_Additions::can_edit() ) {
+			return;
+		}
+
 		if ( ! isset( $_POST['fw_seo_quick_nonce'] ) ) {
 			return;
 		}

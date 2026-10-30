@@ -239,6 +239,45 @@ fw_seo_inspect_is(
 	true
 );
 
+/* -------------------------------------------------------------------------- *
+ * badge_html() — the list column and the editor line
+ * -------------------------------------------------------------------------- */
+
+require_once $base . '/includes/class-fw-seo-console.php';
+
+$saved_tokens = get_option( FW_SEO_Console::TOKENS_OPTION, null );
+$fixture      = wp_insert_post( array( 'post_title' => 'Inspect badge fixture', 'post_status' => 'publish', 'post_type' => 'post' ) );
+
+delete_option( FW_SEO_Console::TOKENS_OPTION );
+update_post_meta( $fixture, FW_SEO_Inspect::META_KEY, FW_SEO_Inspect::parse( fw_seo_inspect_response() ) );
+fw_seo_inspect_is( 'no badge without a connection — no promise of data that will never arrive', FW_SEO_Inspect::badge_html( $fixture ), '' );
+
+update_option( FW_SEO_Console::TOKENS_OPTION, array( 'refresh' => 'TEST-ONLY' ), false );
+delete_post_meta( $fixture, FW_SEO_Inspect::META_KEY );
+fw_seo_inspect_is( 'no badge for a page not checked yet — "not known" on every row is noise', FW_SEO_Inspect::badge_html( $fixture ), '' );
+
+update_post_meta( $fixture, FW_SEO_Inspect::META_KEY, FW_SEO_Inspect::parse( fw_seo_inspect_response() ) );
+$badge = FW_SEO_Inspect::badge_html( $fixture );
+fw_seo_inspect_is( 'a checked, indexed page gets the indexed badge', false !== strpos( $badge, 'fw-seo-flag-indexed' ), true );
+fw_seo_inspect_is( 'the compact badge keeps Google\'s phrase to the tooltip', false === strpos( $badge, '<span class="fw-seo-index-why"' ), true );
+
+update_post_meta( $fixture, FW_SEO_Inspect::META_KEY, FW_SEO_Inspect::parse( fw_seo_inspect_response( array(
+	'verdict'         => 'FAIL',
+	'coverageState'   => 'Duplicate without user-selected canonical',
+	'googleCanonical' => 'https://example.test/other/',
+) ) ) );
+$detail = FW_SEO_Inspect::badge_html( $fixture, true );
+fw_seo_inspect_is( 'the editor line spells out Google\'s phrase', false !== strpos( $detail, 'Duplicate without user-selected canonical' ), true );
+fw_seo_inspect_is( 'and names the canonical Google chose instead', false !== strpos( $detail, 'https://example.test/other/' ), true );
+
+wp_delete_post( $fixture, true );
+if ( null === $saved_tokens ) {
+	delete_option( FW_SEO_Console::TOKENS_OPTION );
+} else {
+	update_option( FW_SEO_Console::TOKENS_OPTION, $saved_tokens, false );
+}
+
+
 printf( "\n%d passed, %d failed\n", FW_SEO_Inspect_T::$pass, FW_SEO_Inspect_T::$fail );
 
 exit( FW_SEO_Inspect_T::$fail ? 1 : 0 );

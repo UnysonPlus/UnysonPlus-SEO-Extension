@@ -323,7 +323,30 @@ class FW_SEO_Settings_Page {
 				<?php wp_nonce_field( self::NONCE ); ?>
 				<?php
 				// phpcs:ignore WordPress.Security.EscapeOutput -- the options renderer escapes.
-				echo fw()->backend->render_options( (array) ( $tabs[ $view ]['options'] ?? [] ), $values );
+				$html = fw()->backend->render_options( (array) ( $tabs[ $view ]['options'] ?? [] ), $values );
+
+				// Reports that need WordPress fully loaded are filled in now, not
+				// while the schema was being built (see FW_SEO_Redirects::PLACEHOLDER).
+				if ( false !== strpos( $html, FW_SEO_Redirects::PLACEHOLDER ) ) {
+					$html = str_replace( FW_SEO_Redirects::PLACEHOLDER, FW_SEO_Redirects::report_html(), $html );
+				}
+				if ( false !== strpos( $html, FW_SEO_Links::PLACEHOLDER ) ) {
+					$html = str_replace( FW_SEO_Links::PLACEHOLDER, FW_SEO_Links::report_html(), $html );
+				}
+				if ( false !== strpos( $html, FW_SEO_Alerts::PLACEHOLDER ) ) {
+					$html = str_replace( FW_SEO_Alerts::PLACEHOLDER, FW_SEO_Alerts::report_html(), $html );
+				}
+				if ( false !== strpos( $html, FW_SEO_Health::PLACEHOLDER ) ) {
+					$html = str_replace( FW_SEO_Health::PLACEHOLDER, FW_SEO_Health::report_html(), $html );
+				}
+				if ( false !== strpos( $html, FW_SEO_IndexNow::PLACEHOLDER ) ) {
+					$html = str_replace( FW_SEO_IndexNow::PLACEHOLDER, FW_SEO_IndexNow::status_html(), $html );
+				}
+				if ( false !== strpos( $html, FW_SEO_Robots::PLACEHOLDER ) ) {
+					$html = str_replace( FW_SEO_Robots::PLACEHOLDER, FW_SEO_Robots::preview_html(), $html );
+				}
+
+				echo $html;
 				?>
 				<p class="submit fw-seo-submit">
 					<button type="submit" class="button button-primary"><?php esc_html_e( 'Save Changes', 'fw' ); ?></button>
@@ -401,6 +424,8 @@ class FW_SEO_Settings_Page {
 			<?php endif; ?>
 
 			<?php echo $this->csv_panel(); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in the panel. ?>
+
+			<?php echo FW_SEO_Transfer::panel_html(); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in the panel. ?>
 		</div>
 		<?php
 
