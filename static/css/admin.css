@@ -22,6 +22,15 @@
 	margin: 0;
 }
 
+/*
+ * The panels above the tabs are loose text, not framework options, so they need
+ * their own inset: `.inside` leaves them almost on the box edge. 12px puts them
+ * on the same line as the box heading, with or without the admin skin.
+ */
+.fw-seo-panels {
+	padding: 0 12px;
+}
+
 .fw-seo-metabox .fw-backend-option {
 	max-width: none;
 }

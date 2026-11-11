@@ -480,6 +480,8 @@ class FW_SEO_Trends {
 			</p>
 			<p class="description"><?php esc_html_e( 'Trends numbers are relative to the peak of what you asked for, not search volumes, so each import keeps the terms, country and dates it was taken under. The JSON export holds every import and imports back unchanged.', 'fw' ); ?></p>
 
+			<?php echo class_exists( 'FW_SEO_Bing' ) ? FW_SEO_Bing::volumes_html() : ''; // phpcs:ignore WordPress.Security.EscapeOutput -- built from escaped parts. ?>
+
 			<?php if ( $imports ) : ?>
 				<table class="widefat striped" style="max-width:1100px"><thead><tr><th><?php esc_html_e( 'Imported', 'fw' ); ?></th><th><?php esc_html_e( 'Chart', 'fw' ); ?></th><th><?php esc_html_e( 'Terms', 'fw' ); ?></th><th><?php esc_html_e( 'Country', 'fw' ); ?></th><th><?php esc_html_e( 'Dates', 'fw' ); ?></th><th></th></tr></thead><tbody>
 				<?php foreach ( $imports as $imp ) : ?>
@@ -498,7 +500,7 @@ class FW_SEO_Trends {
 				<?php if ( ! self::console_queries() ) : ?>
 					<p class="description"><?php esc_html_e( 'Connect Search Console to see which of these topics already bring impressions. Without it, every topic reads as having none.', 'fw' ); ?></p>
 				<?php endif; ?>
-				<table class="widefat striped" style="max-width:1300px"><thead><tr><th><?php esc_html_e( 'Topic', 'fw' ); ?></th><th><?php esc_html_e( 'Interest', 'fw' ); ?></th><th><?php esc_html_e( 'Your impressions', 'fw' ); ?></th><th><?php esc_html_e( 'Your page', 'fw' ); ?></th><th><?php esc_html_e( 'Searched on your site', 'fw' ); ?></th><th><?php esc_html_e( 'What to do', 'fw' ); ?></th></tr></thead><tbody>
+				<table class="widefat striped" style="max-width:1300px"><thead><tr><th><?php esc_html_e( 'Topic', 'fw' ); ?></th><th><?php esc_html_e( 'Interest', 'fw' ); ?></th><th><?php esc_html_e( 'Bing searches', 'fw' ); ?></th><th><?php esc_html_e( 'Your impressions', 'fw' ); ?></th><th><?php esc_html_e( 'Your page', 'fw' ); ?></th><th><?php esc_html_e( 'Searched on your site', 'fw' ); ?></th><th><?php esc_html_e( 'What to do', 'fw' ); ?></th></tr></thead><tbody>
 				<?php foreach ( $rows as $r ) : ?>
 					<tr>
 						<td><strong><?php echo esc_html( $r['term'] ); ?></strong><?php if ( $r['peak_month'] ) : ?><br><span class="description"><?php echo esc_html( sprintf( /* translators: %s: month */ __( 'peaks in %s', 'fw' ), $r['peak_month'] ) ); ?></span><?php endif; ?></td>
@@ -515,6 +517,10 @@ class FW_SEO_Trends {
 								'year' === $r['basis'] ? __( 'on the same months last year', 'fw' ) : __( 'on the months before', 'fw' )
 							) ) . '</span>';
 						}
+						?></td>
+						<td><?php
+						$volume = class_exists( 'FW_SEO_Bing' ) ? FW_SEO_Bing::stored_volume( $r['term'] ) : null;
+						echo $volume ? esc_html( number_format_i18n( $volume['broad'] ) ) : '<span class="description">–</span>';
 						?></td>
 						<td><?php echo $r['impressions'] ? esc_html( number_format_i18n( $r['impressions'] ) ) : '<span class="description">–</span>'; ?></td>
 						<td><?php echo $r['page'] ? '<a href="' . esc_url( (string) get_edit_post_link( $r['page'] ) ) . '">' . esc_html( get_the_title( $r['page'] ) ) . '</a>' : '<span class="description">' . esc_html__( 'none', 'fw' ) . '</span>'; ?></td>

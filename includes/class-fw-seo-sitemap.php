@@ -7,9 +7,13 @@
  *
  * A registry of providers rather than a class that knows about posts and terms.
  * A provider says how many entries it has and how to fetch one page of them;
- * everything else — chunking, the index, the XSL, the rewrite rules, the
+ * everything else — chunking, the index, the rewrite rules, the
  * noindex filtering — is handled here once. That is what lets a portfolio, an
  * events archive or anything else join the sitemap without touching this file.
+ *
+ * No XSL stylesheet: it made the XML readable in a browser, but browsers are
+ * removing XSLT (Chrome already warns on every page that uses it) and crawlers
+ * never applied it. People get the [seo_sitemap] HTML sitemap instead.
  *
  * Two things the 1.0.x sitemap did that are deliberately NOT carried over:
  *
@@ -38,7 +42,7 @@ class FW_SEO_Sitemap {
 	 *
 	 * @param string $key  URL-safe id; becomes /sitemap-<key>-1.xml.
 	 * @param array  $args {
-	 *     @type string   $label Human label for the stylesheet.
+	 *     @type string   $label Human label for the provider.
 	 *     @type callable $count fn(): int — total entries.
 	 *     @type callable $urls  fn( int $page, int $per_page ): array<int,array{
 	 *                           loc:string, lastmod?:string, images?:array<int,string>}>
@@ -157,7 +161,6 @@ class FW_SEO_Sitemap {
 	 */
 	public static function add_rewrite_rules() {
 		add_rewrite_rule( '^sitemap\.xml$', 'index.php?fw_seo_sitemap=index', 'top' );
-		add_rewrite_rule( '^sitemap\.xsl$', 'index.php?fw_seo_sitemap=xsl', 'top' );
 		add_rewrite_rule(
 			'^sitemap-([a-z0-9_-]+)-(\d+)\.xml$',
 			'index.php?fw_seo_sitemap=$matches[1]&fw_seo_sitemap_page=$matches[2]',
@@ -278,10 +281,6 @@ class FW_SEO_Sitemap {
 
 		self::boot();
 
-		if ( 'xsl' === $which ) {
-			self::render_stylesheet();
-		}
-
 		if ( 'index' === $which ) {
 			self::render_index();
 		}
@@ -340,7 +339,6 @@ class FW_SEO_Sitemap {
 		$entries = (array) apply_filters( 'fw_seo_sitemap_index_entries', $entries );
 
 		echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-		echo '<?xml-stylesheet type="text/xsl" href="' . esc_url( self::stylesheet_url() ) . '"?>' . "\n";
 		echo '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
 
 		foreach ( $entries as $entry ) {
@@ -384,7 +382,6 @@ class FW_SEO_Sitemap {
 		$has_images = (bool) array_filter( array_column( $urls, 'images' ) );
 
 		echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-		echo '<?xml-stylesheet type="text/xsl" href="' . esc_url( self::stylesheet_url() ) . '"?>' . "\n";
 		echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"';
 
 		if ( $has_images ) {
@@ -453,41 +450,6 @@ class FW_SEO_Sitemap {
 		}
 
 		echo '</urlset>';
-		exit;
-	}
-
-	/**
-	 * @return string
-	 */
-	public static function stylesheet_url() {
-		global $wp_rewrite;
-
-		if ( $wp_rewrite && $wp_rewrite->using_permalinks() ) {
-			return home_url( '/sitemap.xsl' );
-		}
-
-		return add_query_arg( 'fw_seo_sitemap', 'xsl', home_url( '/' ) );
-	}
-
-	/**
-	 * The human-readable stylesheet. A sitemap is machine output, but a person
-	 * opens it far more often than a crawler explains itself, so it is worth
-	 * being legible.
-	 */
-	protected static function render_stylesheet() {
-		if ( ! headers_sent() ) {
-			header( 'Content-Type: application/xslt+xml; charset=UTF-8' );
-			header( 'X-Robots-Tag: noindex, follow', true );
-		}
-
-		// FW_Extension::render_view() is final protected, so the view is located
-		// directly rather than through the extension.
-		$view = dirname( __FILE__ ) . '/../views/sitemap-xsl.php';
-
-		if ( file_exists( $view ) ) {
-			fw_render_view( $view, [], false );
-		}
-
 		exit;
 	}
 

@@ -401,6 +401,16 @@ class FW_SEO_Health {
 			return;
 		}
 
+		/**
+		 * Whether the site is deliberately not public (core Workspaces: "No public website").
+		 * Being invisible to search engines is then the point, not a problem to warn about.
+		 *
+		 * @param bool $private
+		 */
+		if ( apply_filters( 'fw_seo_site_private', false ) ) {
+			return;
+		}
+
 		$results  = self::last()['results'];
 		$critical = self::with_status( $results, self::CRITICAL );
 

@@ -11,7 +11,7 @@ $manifest['description'] = __(
 	'fw'
 );
 
-$manifest['version']    = '2.0.53';
+$manifest['version']    = '2.0.60';
 $manifest['display']    = true;
 $manifest['standalone'] = true;
 
@@ -40,6 +40,24 @@ $manifest['requires_wp']  = '5.8';
 /**
  * Changelog
  * -----------------------------------------------------------------------------
+ * 2.0.57 - Reports from outside the database: broken links, backlinks, search
+ *          volumes, rendered-page checks and a crawler import.
+ *
+ *          SEO, Broken links fetches every link from the link index in small
+ *          hourly batches and lists broken links, redirects, chains and loops.
+ *          A site that refuses robots counts as "could not be checked", never
+ *          as broken. SEO, Backlinks reads who links to the site with the
+ *          owner's own free webmaster API key, keeps first and last seen dates
+ *          so new and lost links show, offers a one-click redirect for links
+ *          to missing pages, and can add a rough rank per referring site. The
+ *          same key gives real search counts on Topic momentum.
+ *
+ *          The Audit gains what only a fetched page shows (mixed content,
+ *          overridden titles and canonicals, oversized images, language links
+ *          that are not returned), and an Import / Export box takes a
+ *          dedicated crawler's CSV or JSON export, matching its findings to
+ *          pages. Both keys stay out of settings exports and AI tools.
+ *
  * 2.0.26 - Search Console: your own data, shown where you can act on it.
  *
  *          Setup is a seven-step walkthrough in the box itself, with links

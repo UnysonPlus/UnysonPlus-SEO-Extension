@@ -83,6 +83,10 @@ class FW_Extension_SEO extends FW_Extension {
 		require_once $includes . 'class-fw-seo-performance.php';
 		require_once $includes . 'class-fw-seo-trends.php';
 		require_once $includes . 'class-fw-seo-ai.php';
+		require_once $includes . 'class-fw-seo-link-check.php';
+		require_once $includes . 'class-fw-seo-bing.php';
+		require_once $includes . 'class-fw-seo-render-check.php';
+		require_once $includes . 'class-fw-seo-crawl-import.php';
 		require_once $includes . 'class-fw-seo-store.php';
 		require_once $includes . 'class-fw-seo-locations.php';
 		require_once $includes . 'class-fw-seo-settings.php';
@@ -118,6 +122,10 @@ class FW_Extension_SEO extends FW_Extension {
 		FW_SEO_Audit::init();
 		FW_SEO_Trends::init();
 		FW_SEO_AI::init();
+		FW_SEO_Link_Check::init();
+		FW_SEO_Bing::init();
+		FW_SEO_Render_Check::init();
+		FW_SEO_Crawl_Import::init();
 		FW_SEO_Card::init();
 		FW_SEO_Vitals::init();
 		FW_SEO_Console::init();

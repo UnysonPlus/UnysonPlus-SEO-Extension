@@ -999,6 +999,18 @@ $options['audit_tab'] = [
 				],
 			],
 		],
+		'crawl_box'      => [
+			'title'   => __( 'Import / Export a crawler\'s results', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'Already run a dedicated crawler? Import its CSV or JSON export and its findings are matched to your pages and listed in the audit above. What is imported can be exported again and imports back unchanged.', 'fw' ),
+			'options' => [
+				'crawl_screen' => [
+					'type'  => 'html-full',
+					'label' => false,
+					'html'  => FW_SEO_Crawl_Import::PLACEHOLDER,
+				],
+			],
+		],
 		'guardrails_box' => [
 			'title'   => __( 'Pages generated in bulk', 'fw' ),
 			'type'    => 'box',
@@ -1092,6 +1104,80 @@ $options['links_tab'] = [
 							'value' => '',
 						],
 					],
+				],
+			],
+		],
+	],
+];
+
+$options['broken_tab'] = [
+	'title'   => __( 'Broken links', 'fw' ),
+	'type'    => 'tab',
+	'options' => [
+		'broken_box' => [
+			'title'   => __( 'What every link on the site actually answers', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'Every link from the Links report, internal and outgoing, is fetched in the background and the answer recorded: broken, redirected, a chain of redirects, or a loop. It works slowly, a few addresses an hour, and checks each again after a week.', 'fw' ),
+			'options' => [
+				'broken_report' => [
+					'type'  => 'html-full',
+					'label' => false,
+					'html'  => FW_SEO_Link_Check::PLACEHOLDER,
+				],
+			],
+		],
+	],
+];
+
+$options['backlinks_tab'] = [
+	'title'   => __( 'Backlinks', 'fw' ),
+	'type'    => 'tab',
+	'options' => [
+		'backlinks_key_box' => [
+			'title'   => __( 'Connect Bing Webmaster Tools', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'Who links to your site is only known to whoever crawls the web. Bing shares what it has found about a site you have verified with it, free. In Bing Webmaster Tools open Settings, then API access, generate an API key and paste it here.', 'fw' ),
+			'options' => [
+				'backlinks_key_group' => [
+					'type'    => 'group',
+					'options' => [
+						'bing_api_key'  => [
+							'label' => __( 'Bing Webmaster Tools API key', 'fw' ),
+							'desc'  => __( 'Stays on this site: it is left out of settings exports and is not shown to AI tools.', 'fw' ),
+							'type'  => 'text',
+							'value' => '',
+						],
+						'bing_country'  => [
+							'label' => __( 'Country for search volumes', 'fw' ),
+							'desc'  => __( 'A two-letter code such as us or gb. Leave empty to use the site\'s language setting.', 'fw' ),
+							'type'  => 'text',
+							'value' => '',
+						],
+						'bing_language' => [
+							'label' => __( 'Language for search volumes', 'fw' ),
+							'desc'  => __( 'A code such as en-US or en-GB. Leave empty to use the site\'s language setting.', 'fw' ),
+							'type'  => 'text',
+							'value' => '',
+						],
+						'opr_api_key'   => [
+							'label' => __( 'Open PageRank API key (optional)', 'fw' ),
+							'desc'  => __( 'Adds a rough 0 to 10 rank beside each site that links to you, from a free index built on the public web crawl. Free keys can be tied to one server address, so a site on shared hosting may be refused.', 'fw' ),
+							'type'  => 'text',
+							'value' => '',
+						],
+					],
+				],
+			],
+		],
+		'backlinks_box'     => [
+			'title'   => __( 'Links to your site', 'fw' ),
+			'type'    => 'box',
+			'desc'    => __( 'The sites Bing has seen linking to you, what is new and what has gone, and the links that point at pages that no longer exist, which a redirect wins back.', 'fw' ),
+			'options' => [
+				'backlinks_report' => [
+					'type'  => 'html-full',
+					'label' => false,
+					'html'  => FW_SEO_Bing::PLACEHOLDER,
 				],
 			],
 		],

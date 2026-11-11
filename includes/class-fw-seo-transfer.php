@@ -31,7 +31,7 @@ class FW_SEO_Transfer {
 	const VERSION = 1;
 
 	/** Settings that are credentials: exported only on request. */
-	const SECRETS = [ 'crux_api_key', 'console_client_id', 'console_client_secret' ];
+	const SECRETS = [ 'crux_api_key', 'console_client_id', 'console_client_secret', 'bing_api_key', 'opr_api_key' ];
 
 	const PENDING_TRANSIENT = 'fw_seo_transfer_pending';
 

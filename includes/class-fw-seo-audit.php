@@ -388,7 +388,7 @@ class FW_SEO_Audit {
 			'focus_missing'    => __( 'Focus keyphrase missing from the title, description, first paragraph or text.', 'fw' ),
 			'no_focus'         => __( 'No focus keyphrase set. Optional; it is what the page checks are measured against.', 'fw' ),
 			'thin'             => __( 'Thin: fewer words than the thin-page threshold (Going stale settings).', 'fw' ),
-		];
+		] + FW_SEO_Render_Check::issue_labels() + FW_SEO_Crawl_Import::issue_labels();
 	}
 
 	/** @return array<string, int[]> issue id => post ids, from the stored results. */
@@ -396,12 +396,24 @@ class FW_SEO_Audit {
 		$out = [];
 		foreach ( self::ids_after( 0, 20000 ) as $id ) {
 			$a = get_post_meta( $id, self::META, true );
-			foreach ( array_keys( (array) ( $a['issues'] ?? [] ) ) as $issue ) {
+			$r = get_post_meta( $id, FW_SEO_Render_Check::META, true );
+			foreach ( array_keys( (array) ( $a['issues'] ?? [] ) + (array) ( $r['issues'] ?? [] ) ) as $issue ) {
 				$out[ $issue ][] = $id;
 			}
 		}
 
+		foreach ( FW_SEO_Crawl_Import::by_issue() as $issue => $ids ) {
+			$out[ $issue ] = $ids;
+		}
+
 		return $out;
+	}
+
+	/** What a fetched page or a crawler said, for showing beside the page's name. */
+	protected static function detail( $id, $issue ) {
+		$r = get_post_meta( $id, FW_SEO_Render_Check::META, true );
+
+		return (string) ( $r['issues'][ $issue ] ?? FW_SEO_Crawl_Import::detail( $id, $issue ) );
 	}
 
 	/** @return array<string, array{indexed: int, total: int}> Per post type, from the index coverage checks. */
@@ -428,10 +440,11 @@ class FW_SEO_Audit {
 		return $out;
 	}
 
-	protected static function page_list( array $ids, $limit = 25 ) {
+	protected static function page_list( array $ids, $limit = 25, $issue = '' ) {
 		$html = '<ul style="margin:6px 0 0 18px;list-style:disc">';
 		foreach ( array_slice( $ids, 0, $limit ) as $id ) {
-			$html .= '<li><a href="' . esc_url( (string) get_edit_post_link( $id ) ) . '">' . esc_html( get_the_title( $id ) ?: __( '(no title)', 'fw' ) ) . '</a></li>';
+			$note  = '' !== $issue ? self::detail( $id, $issue ) : '';
+			$html .= '<li><a href="' . esc_url( (string) get_edit_post_link( $id ) ) . '">' . esc_html( get_the_title( $id ) ?: __( '(no title)', 'fw' ) ) . '</a>' . ( '' !== $note ? ': <code>' . esc_html( wp_html_excerpt( $note, 160, '…' ) ) . '</code>' : '' ) . '</li>';
 		}
 		if ( count( $ids ) > $limit ) {
 			$html .= '<li>' . esc_html( sprintf(
@@ -481,8 +494,8 @@ class FW_SEO_Audit {
 			human_time_diff( $state['time'] )
 		) ) . ' <a class="button" href="' . esc_url( $run ) . '">' . esc_html__( 'Check again now', 'fw' ) . '</a></p>';
 
-		$section = static function ( $title, $note, array $ids ) {
-			return '<details style="margin:0 0 10px"><summary style="cursor:pointer"><strong>' . esc_html( $title ) . '</strong> <span class="count">(' . count( $ids ) . ')</span></summary><p class="description" style="margin:6px 0 0">' . esc_html( $note ) . '</p>' . self::page_list( $ids ) . '</details>';
+		$section = static function ( $title, $note, array $ids, $issue = '' ) {
+			return '<details style="margin:0 0 10px"><summary style="cursor:pointer"><strong>' . esc_html( $title ) . '</strong> <span class="count">(' . count( $ids ) . ')</span></summary><p class="description" style="margin:6px 0 0">' . esc_html( $note ) . '</p>' . self::page_list( $ids, 25, $issue ) . '</details>';
 		};
 
 		$any = false;
@@ -509,13 +522,15 @@ class FW_SEO_Audit {
 		foreach ( self::issue_labels() as $id => $label ) {
 			if ( ! empty( $issues[ $id ] ) ) {
 				$any   = true;
-				$html .= $section( $label, '', $issues[ $id ] );
+				$html .= $section( $label, '', $issues[ $id ], $id );
 			}
 		}
 
 		if ( ! $any ) {
 			$html .= '<p><strong>' . esc_html__( 'Nothing to fix.', 'fw' ) . '</strong></p>';
 		}
+
+		$html .= FW_SEO_Render_Check::status_html();
 
 		$cov = self::coverage_by_type();
 		if ( $cov ) {

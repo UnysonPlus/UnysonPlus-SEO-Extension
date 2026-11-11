@@ -82,6 +82,10 @@ class FW_SEO_Admin {
 		// a page while they are working on that page.
 		$index = class_exists( 'FW_SEO_Inspect' ) ? FW_SEO_Inspect::badge_html( $post->ID, true ) : '';
 
+		// Everything above the tabs shares one wrapper, so a new panel inherits the
+		// box's side spacing rather than sitting against its edge.
+		echo '<div class="fw-seo-panels">';
+
 		// The focus keyphrase and what the saved page shows for it.
 		if ( class_exists( 'FW_SEO_Analysis' ) ) {
 			echo FW_SEO_Analysis::editor_html( $post->ID ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in editor_html().
@@ -117,6 +121,8 @@ class FW_SEO_Admin {
 		if ( class_exists( 'FW_SEO_Rank' ) ) {
 			echo FW_SEO_Rank::editor_html( $post->ID ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in editor_html().
 		}
+
+		echo '</div>';
 
 		self::render_tabs( self::get_tabs( $post->ID, null, $ctx ), $values, 'fw-seo-metabox' );
 	}

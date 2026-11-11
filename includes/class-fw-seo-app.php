@@ -101,6 +101,8 @@ class FW_SEO_App {
 					'rank_tab'      => array( 'label' => __( 'Where pages rank', 'fw' ), 'icon' => 'dashicons-sort' ),
 					'search_tab'    => array( 'label' => __( 'Site search', 'fw' ), 'icon' => 'dashicons-search' ),
 					'links_tab'        => array( 'label' => __( 'Links', 'fw' ), 'icon' => 'dashicons-admin-links' ),
+					'broken_tab'       => array( 'label' => __( 'Broken links', 'fw' ), 'icon' => 'dashicons-editor-unlink' ),
+					'backlinks_tab'    => array( 'label' => __( 'Backlinks', 'fw' ), 'icon' => 'dashicons-external' ),
 					'freshness_tab' => array( 'label' => __( 'Going stale', 'fw' ), 'icon' => 'dashicons-backup' ),
 					'vitals_tab'    => array( 'label' => __( 'Page speed', 'fw' ), 'icon' => 'dashicons-performance' ),
 				),

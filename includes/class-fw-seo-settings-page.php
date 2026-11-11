@@ -423,7 +423,7 @@ class FW_SEO_Settings_Page {
 				if ( false !== strpos( $html, FW_SEO_Redirects::PLACEHOLDER ) ) {
 					$html = str_replace( FW_SEO_Redirects::PLACEHOLDER, FW_SEO_Redirects::report_html(), $html );
 				}
-				foreach ( [ 'FW_SEO_Performance' => 'report_html', 'FW_SEO_Trends' => 'report_html', 'FW_SEO_AI' => 'visibility_html' ] as $fw_seo_class => $fw_seo_method ) {
+				foreach ( [ 'FW_SEO_Performance' => 'report_html', 'FW_SEO_Trends' => 'report_html', 'FW_SEO_AI' => 'visibility_html', 'FW_SEO_Bing' => 'report_html', 'FW_SEO_Link_Check' => 'report_html', 'FW_SEO_Crawl_Import' => 'screen_html' ] as $fw_seo_class => $fw_seo_method ) {
 					if ( false !== strpos( $html, $fw_seo_class::PLACEHOLDER ) ) {
 						$html = str_replace( $fw_seo_class::PLACEHOLDER, $fw_seo_class::$fw_seo_method(), $html );
 					}
