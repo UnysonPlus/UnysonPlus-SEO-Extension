@@ -88,6 +88,12 @@ $fw_seo_location_group = static function ( array $location ) {
  * tree is built, exactly as it always was.
  */
 $fw_seo_wants = static function ( $tab ) {
+	// The report tabs (search terms, freshness, speed) query the database: build them only on an admin screen. This
+	// file is also read to look up one setting on front-end requests (FW_SEO_Settings::flag), and every page view
+	// ran the reports' queries.
+	if ( ! is_admin() ) {
+		return false;
+	}
 	return ! class_exists( 'FW_SEO_Settings_Page' ) || FW_SEO_Settings_Page::wants( $tab );
 };
 

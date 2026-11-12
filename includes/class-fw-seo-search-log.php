@@ -166,6 +166,7 @@ class FW_SEO_Search_Log {
 			return false;
 		}
 
+		self::install(); // the table is made on first use (nothing else ever created it)
 		$table = self::table();
 
 		// One statement: INSERT ... ON DUPLICATE KEY UPDATE. A read-then-write
@@ -214,6 +215,7 @@ class FW_SEO_Search_Log {
 	public static function clear() {
 		global $wpdb;
 
+		self::install(); // the table is made on first use (nothing else ever created it)
 		$table = self::table();
 
 		return (int) $wpdb->query( "DELETE FROM `{$table}`" ); // phpcs:ignore WordPress.DB
@@ -234,6 +236,7 @@ class FW_SEO_Search_Log {
 
 		$gap   = $args['gap'] ?? 'missing';
 		$limit = max( 1, min( 200, (int) ( $args['limit'] ?? 50 ) ) );
+		self::install(); // the table is made on first use (nothing else ever created it)
 		$table = self::table();
 
 		$where = '1=1';
@@ -258,6 +261,7 @@ class FW_SEO_Search_Log {
 	public static function summary() {
 		global $wpdb;
 
+		self::install(); // the table is made on first use (nothing else ever created it)
 		$table = self::table();
 
 		$row = $wpdb->get_row( "SELECT COUNT(*) AS terms, COALESCE(SUM(hits),0) AS searches, COALESCE(SUM(results = 0),0) AS missing FROM `{$table}`" ); // phpcs:ignore WordPress.DB
